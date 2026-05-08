@@ -9,12 +9,13 @@ document.addEventListener('DOMContentLoaded', () => {
     lucide.createIcons();
 
     // State Management
+    const savedChats = JSON.parse(localStorage.getItem('think_ai_chats') || '[]');
     const state = {
         isSidebarCollapsed: false,
-        activeModel: 'GPT-5.5 Max',
+        activeModel: 'Think-Chat',
         isWebSearchEnabled: false,
         activeChatId: null,
-        chats: [],
+        chats: savedChats,
         currentTheme: 'light', // 'light', 'dark', or 'neon'
         isAIProcessing: false,
         activeMood: null,
@@ -22,6 +23,10 @@ document.addEventListener('DOMContentLoaded', () => {
             Friendly: 50, Angry: 50, Emotional: 50, Romantic: 50,
             Funny: 50, Serious: 50, Sad: 50, Happy: 50
         }
+    };
+
+    const saveChats = () => {
+        localStorage.setItem('think_ai_chats', JSON.stringify(state.chats));
     };
 
     // DOM Elements
@@ -51,7 +56,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const intensityValLabel = document.getElementById('intensity-val');
     const moodConfirmBtn = document.getElementById('mood-confirm-btn');
 
-    // Sidebar Toggle
+    // Sidebar Toggle (Desktop)
     toggleSidebarBtn?.addEventListener('click', () => {
         state.isSidebarCollapsed = !state.isSidebarCollapsed;
         sidebar.classList.toggle('sidebar-collapsed', state.isSidebarCollapsed);
@@ -62,6 +67,25 @@ document.addEventListener('DOMContentLoaded', () => {
             icon.style.transform = state.isSidebarCollapsed ? 'rotate(180deg)' : 'rotate(0deg)';
         }
     });
+
+    // Sidebar Toggle (Mobile)
+    const mobileToggle = document.getElementById('mobile-toggle');
+    const mobileBackdrop = document.getElementById('mobile-backdrop');
+
+    const closeMobileSidebar = () => {
+        if (window.innerWidth < 768) {
+            sidebar.classList.add('-translate-x-full');
+            mobileBackdrop?.classList.add('hidden');
+        }
+    };
+
+    const toggleMobileSidebar = () => {
+        sidebar.classList.toggle('-translate-x-full');
+        mobileBackdrop?.classList.toggle('hidden');
+    };
+
+    mobileToggle?.addEventListener('click', toggleMobileSidebar);
+    mobileBackdrop?.addEventListener('click', toggleMobileSidebar);
 
     // Dropdown Handlers
     settingsBtn?.addEventListener('click', (e) => { e.stopPropagation(); settingsDropdown.classList.toggle('show'); });
@@ -157,6 +181,7 @@ document.addEventListener('DOMContentLoaded', () => {
             chat.intensity = state.moodIntensities[state.activeMood];
             chat.hasModifiedMood = true;
         }
+        saveChats();
         moodModifierScreen.classList.add('hidden');
         const trigger = document.getElementById('mood-suggestion');
         if (trigger) {
@@ -218,19 +243,25 @@ document.addEventListener('DOMContentLoaded', () => {
             if (icon) { icon.classList.toggle('text-[#ff5bf8]', isActive); icon.classList.toggle('text-gray-400', !isActive); }
         });
         chatContainer.scrollTo({ top: chatContainer.scrollHeight });
+        closeMobileSidebar();
     };
 
     // Actions
     const deleteChat = (chatId) => {
         state.chats = state.chats.filter(c => c.id !== chatId);
+        saveChats();
         document.querySelector(`.chat-history-item[data-id="${chatId}"]`)?.remove();
         if (state.chats.length === 0) {
             if (emptyHistory) emptyHistory.style.display = 'block';
             startNewChat();
         } else if (state.activeChatId === chatId) {
             const nextChat = state.chats.find(c => c.messages.length > 0) || state.chats[0];
-            state.activeChatId = nextChat.id;
-            renderChat(nextChat.id);
+            if (nextChat) {
+                state.activeChatId = nextChat.id;
+                renderChat(nextChat.id);
+            } else {
+                startNewChat();
+            }
         }
     };
 
@@ -239,6 +270,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const newTitle = prompt("Enter new title:", chat.title);
         if (newTitle?.trim()) {
             chat.title = newTitle.trim();
+            saveChats();
             const span = document.querySelector(`.chat-history-item[data-id="${chatId}"] span`);
             if (span) span.textContent = chat.title;
         }
@@ -249,6 +281,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const item = document.querySelector(`.chat-history-item[data-id="${chatId}"]`);
         if (!item) return;
         chat.isPinned = !chat.isPinned;
+        saveChats();
         item.classList.toggle('pinned-item', chat.isPinned);
         const icon = item.querySelector('i:first-child');
         if (icon) { icon.setAttribute('data-lucide', chat.isPinned ? 'pin' : 'message-square'); icon.classList.toggle('text-[#ff5bf8]', chat.isPinned); }
@@ -317,7 +350,30 @@ document.addEventListener('DOMContentLoaded', () => {
         chatContainer.appendChild(msgDiv);
         chatContainer.scrollTo({ top: chatContainer.scrollHeight, behavior: 'smooth' });
 
-        const formatContent = (content) => content.replace(/\n/g, '<br>').replace(/`([^`]+)`/g, '<code class="bg-gray-100 px-1 rounded text-pink-500 font-mono text-xs">$1</code>');
+        const formatContent = (content) => {
+            // 1. Escape any raw HTML to prevent injection
+            let formatted = content
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;');
+
+            // 2. Convert **bold** markdown
+            formatted = formatted.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+
+            // 3. Convert `inline code`
+            formatted = formatted.replace(/`([^`]+)`/g, '<code class="inline-code">$1</code>');
+
+            // 4. Convert URLs to clickable links (must come AFTER escaping)
+            formatted = formatted.replace(
+                /(https?:\/\/[^\s&<>"{}|\\^`[\]]+)/g,
+                '<a href="$1" target="_blank" rel="noopener noreferrer" class="chat-link">$1</a>'
+            );
+
+            // 5. Convert newlines to <br>
+            formatted = formatted.replace(/\n/g, '<br>');
+
+            return formatted;
+        };
 
         if (!isUser && shouldStream) {
             state.isAIProcessing = true;
@@ -349,6 +405,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     if (!chat.isAddedToHistory) { addToHistoryUI(chat); chat.isAddedToHistory = true; }
                     renderChat(state.activeChatId);
                 }
+                saveChats();
             }
         }
     };
@@ -364,7 +421,9 @@ document.addEventListener('DOMContentLoaded', () => {
         lucide.createIcons();
     };
 
-    const handleSend = () => {
+    const API_KEY = 'AIzaSyCxJtD_DeXGRw3guOQg0MjxRIFIFA8itis'; // User's Gemini API Key
+
+    const handleSend = async () => {
         if (state.isAIProcessing) return;
         const text = chatInput.value.trim();
         if (text) {
@@ -373,29 +432,62 @@ document.addEventListener('DOMContentLoaded', () => {
             appendMessageToUI(text, true);
             chatInput.value = '';
             chatInput.style.height = 'auto';
-            setTimeout(() => {
-                const modelName = state.activeModel;
-                const mood = currentChat?.mood || "Default";
-                const intensity = currentChat?.intensity || 50;
-                let responsePrefix = "";
-                if (mood === "Angry") responsePrefix = `[Intensity ${intensity}%] Look, I'm pretty frustrated with this research... `;
-                else if (mood === "Friendly") responsePrefix = `[Intensity ${intensity}%] Hello! I'm so happy to help you with this research! `;
-                else if (mood === "Romantic") responsePrefix = `[Intensity ${intensity}%] My dearest, I've poured my heart into this research for you... `;
-                else if (mood === "Funny") responsePrefix = `[Intensity ${intensity}%] Here's a research joke for you! Why did the data cross the road? `;
-                else if (mood === "Serious") responsePrefix = `[Intensity ${intensity}%] Proceeding with a high-level analytical breakdown. No distractions. `;
-                else if (mood === "Sad") responsePrefix = `[Intensity ${intensity}%] I've analyzed the data... but it's all so melancholy... `;
-                else if (mood === "Happy") responsePrefix = `[Intensity ${intensity}%] This data is absolutely thrilling! Let's celebrate! `;
-                else if (mood === "Emotional") responsePrefix = `[Intensity ${intensity}%] I feel deeply moved by the implications of this study... `;
 
-                const responses = [
-                    `${responsePrefix}I've analyzed your research request using the **${modelName}** engine. This topic involves several key dimensions that we should explore.\n\nFirst, let's look at the data implications...`,
-                    `${responsePrefix}As your AI research assistant powered by **${modelName}**, I recommend focusing on these three core areas to maximize your project's efficiency.`,
-                    `${responsePrefix}That's a great starting point. From the perspective of **${modelName}**, the most effective strategy would be to prioritize structural integrity over superficial metrics.`,
-                    `${responsePrefix}I'm ready to assist you. Using **${modelName}**, I've outlined a preliminary framework for your research. How would you like to proceed?`
-                ];
-                appendMessageToUI(responses[Math.floor(Math.random() * responses.length)], false);
-                lucide.createIcons();
-            }, 800);
+            // Show loading state
+            state.isAIProcessing = true;
+            updateSendButtonState();
+
+            if (API_KEY === 'YOUR_GEMINI_API_KEY') {
+                setTimeout(() => {
+                    state.isAIProcessing = false;
+                    updateSendButtonState();
+                    appendMessageToUI("⚠️ **API Key Missing!**\nTo get real answers to anything you ask, you need to add an API key.\n\n1. Go to Google AI Studio to get a free Gemini API key.\n2. Open `script.js` in your editor.\n3. Replace `'YOUR_GEMINI_API_KEY'` on line 369 with your actual key.", false);
+                    lucide.createIcons();
+                }, 1000);
+                return;
+            }
+
+            try {
+                // Prepare conversation history for the AI
+                const history = currentChat.messages.map(msg => ({
+                    role: msg.isUser ? "user" : "model",
+                    parts: [{ text: msg.text }]
+                }));
+
+                // Add mood context if selected
+                const mood = currentChat?.mood;
+                if (mood) {
+                    const intensity = currentChat?.intensity || 50;
+                    history[history.length - 1].parts[0].text += `\n\n(Respond to this in a ${mood} tone, with an intensity of ${intensity}/100)`;
+                }
+
+                // Call the real Google Gemini API
+                const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${API_KEY}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ contents: history })
+                });
+
+                const data = await response.json();
+                state.isAIProcessing = false; // Reset before appending so streaming works
+                
+                if (data.error) {
+                    updateSendButtonState();
+                    appendMessageToUI(`⚠️ **API Error:** ${data.error.message}`, false);
+                } else if (data.candidates && data.candidates.length > 0) {
+                    const aiText = data.candidates[0].content.parts[0].text;
+                    appendMessageToUI(aiText, false);
+                } else {
+                    updateSendButtonState();
+                    appendMessageToUI("Sorry, I received an invalid response from the AI.", false);
+                }
+            } catch (error) {
+                state.isAIProcessing = false;
+                updateSendButtonState();
+                appendMessageToUI("Error connecting to the AI. Please check your internet connection and API key.", false);
+            }
+            
+            lucide.createIcons();
         }
     };
 
@@ -411,5 +503,28 @@ document.addEventListener('DOMContentLoaded', () => {
         document.querySelectorAll('.dropdown-content').forEach(m => m.classList.remove('show'));
     });
 
-    startNewChat();
+    // Restore history on load
+    const validChats = state.chats.filter(c => c.messages && c.messages.length > 0);
+    if (validChats.length > 0) {
+        validChats.forEach(chat => {
+            chat.isAddedToHistory = true;
+            addToHistoryUI(chat);
+            if (chat.isPinned) {
+                const item = document.querySelector(`.chat-history-item[data-id="${chat.id}"]`);
+                if (item) {
+                    item.classList.add('pinned-item');
+                    const icon = item.querySelector('i:first-child');
+                    if (icon) { icon.setAttribute('data-lucide', 'pin'); icon.classList.add('text-[#ff5bf8]'); }
+                    const pinAction = item.querySelector('.action-pin');
+                    if (pinAction) pinAction.innerHTML = '<i data-lucide="pin-off" class="w-3 h-3"></i> Unpin';
+                }
+            }
+        });
+        const lastChat = validChats[validChats.length - 1];
+        state.activeChatId = lastChat.id;
+        renderChat(lastChat.id);
+        lucide.createIcons();
+    } else {
+        startNewChat();
+    }
 });

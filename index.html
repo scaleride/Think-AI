@@ -7,6 +7,12 @@
     <meta name="description" content="ThinkBase AI is a premium AI research platform with a sleek, vibrant interface.">
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
+    
+    <!-- Code Highlighting & Markdown -->
+    <script src="https://cdn.jsdelivr.net/npm/marked@4.3.0/marked.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+
     <link rel="stylesheet" href="styles.css">
 </head>
 <body class="flex h-screen w-full overflow-hidden">
@@ -16,8 +22,11 @@
         <i data-lucide="chevron-left" class="w-4 h-4"></i>
     </button>
 
+    <!-- Mobile Backdrop -->
+    <div id="mobile-backdrop" class="fixed inset-0 bg-black/50 z-[60] hidden md:hidden backdrop-blur-sm transition-all"></div>
+
     <!-- Sidebar -->
-    <aside id="sidebar" class="sidebar-transition w-72 flex flex-col border-r shrink-0 relative z-[65]">
+    <aside id="sidebar" class="sidebar-transition absolute md:relative z-[65] w-72 h-full flex flex-col border-r shrink-0 transform -translate-x-full md:translate-x-0">
         <div class="p-8 pb-6 flex flex-col items-center justify-center gap-4">
             <div class="logo-container w-20 h-20 rounded-full border-4 shadow-xl overflow-hidden transform hover:scale-110 transition-transform duration-300">
                 <img src="f_logo.jpg" alt="F Logo" class="w-full h-full object-cover">
@@ -79,20 +88,53 @@
                 <button id="mobile-toggle" class="md:hidden p-2 text-gray-400"><i data-lucide="menu" class="w-6 h-6"></i></button>
                 <div class="relative">
                     <button id="model-selector" class="liquid-glass flex items-center gap-2 px-3 py-1.5 rounded-xl transition-all group">
-                        <span class="text-sm font-semibold">GPT-5.5 Max</span>
+                        <span class="text-sm font-semibold">Think-Chat</span>
                         <span class="px-1.5 py-0.5 rounded text-[9px] bg-[#ff5bf8]/10 text-[#ff5bf8] font-bold uppercase tracking-wider">Pro</span>
                         <i data-lucide="chevron-down" class="w-4 h-4 text-gray-400 group-hover:text-gray-600 transition-colors"></i>
                     </button>
                     <div id="model-dropdown" class="dropdown-content mt-2 rounded-xl overflow-hidden shadow-2xl w-64" style="top: 100%; bottom: auto;">
                         <div class="p-2 space-y-1 max-h-96 overflow-y-auto custom-scrollbar">
-                            <button class="model-option w-full flex items-center justify-between px-3 py-2 rounded-lg hover:bg-gray-50 text-left transition-colors" data-model="Sonar 2"><div class="flex flex-col"><span class="text-sm font-medium">Sonar 2</span><span class="text-[10px] text-gray-400">Ultra-fast search & analysis</span></div></button>
-                            <button class="model-option w-full flex items-center justify-between px-3 py-2 rounded-lg hover:bg-gray-50 text-left transition-colors" data-model="GPT-5.4"><div class="flex flex-col"><span class="text-sm font-medium">GPT-5.4</span><span class="text-[10px] text-gray-400">Advanced General Intelligence</span></div></button>
-                            <button class="model-option w-full flex items-center justify-between px-3 py-2 rounded-lg hover:bg-gray-50 text-left transition-colors" data-model="GPT-5.5 Max"><div class="flex flex-col"><span class="text-sm font-medium">GPT-5.5 Max</span><span class="text-[10px] text-[#ff5bf8] font-bold">Flagship Intelligence</span></div><i data-lucide="check" class="check-icon w-4 h-4 text-[#ff5bf8]"></i></button>
-                            <button class="model-option w-full flex items-center justify-between px-3 py-2 rounded-lg hover:bg-gray-50 text-left transition-colors" data-model="Gemini 3.1 Pro"><div class="flex flex-col"><span class="text-sm font-medium">Gemini 3.1 Pro</span><span class="text-[10px] text-blue-500">Multi-modal Powerhouse</span></div></button>
-                            <button class="model-option w-full flex items-center justify-between px-3 py-2 rounded-lg hover:bg-gray-50 text-left transition-colors" data-model="Nano Banana 2"><div class="flex flex-col"><span class="text-sm font-medium">Nano Banana 2</span><span class="text-[10px] text-yellow-500">Ultra-compact & Efficient</span></div></button>
-                            <button class="model-option w-full flex items-center justify-between px-3 py-2 rounded-lg hover:bg-gray-50 text-left transition-colors" data-model="Claude Sonnet 4.6"><div class="flex flex-col"><span class="text-sm font-medium">Claude Sonnet 4.6</span><span class="text-[10px] text-gray-400">Creative & Concise</span></div></button>
-                            <button class="model-option w-full flex items-center justify-between px-3 py-2 rounded-lg hover:bg-gray-50 text-left transition-colors" data-model="Claude Opus 4.7"><div class="flex flex-col"><span class="text-sm font-medium">Claude Opus 4.7</span><span class="text-[10px] text-purple-500">Masterful Reasoning</span></div></button>
-                            <button class="model-option w-full flex items-center justify-between px-3 py-2 rounded-lg hover:bg-gray-50 text-left transition-colors" data-model="K Kimi K2.6"><div class="flex flex-col"><span class="text-sm font-medium">K Kimi K2.6</span><span class="text-[10px] text-green-500">Exceptional Memory</span></div></button>
+                            <!-- Think-Chat -->
+                            <button class="model-option w-full flex items-center justify-between px-3 py-2.5 rounded-xl hover:bg-[#ff5bf8]/5 text-left transition-colors" data-model="Think-Chat">
+                                <div class="flex flex-col">
+                                    <span class="text-sm font-semibold">Think-Chat</span>
+                                    <span class="text-[10px] text-[#ff5bf8] font-medium">Main conversational model</span>
+                                </div>
+                                <i data-lucide="check" class="check-icon w-4 h-4 text-[#ff5bf8]"></i>
+                            </button>
+
+                            <!-- Think-Studio (DISABLED) -->
+                            <div class="w-full flex items-center justify-between px-3 py-2.5 rounded-xl opacity-40 cursor-not-allowed select-none">
+                                <div class="flex flex-col">
+                                    <span class="text-sm font-semibold text-gray-500">Think-Studio</span>
+                                    <span class="text-[10px] text-gray-400">Creates videos &amp; photos</span>
+                                </div>
+                                <span class="text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-[#ff5bf8]/10 text-[#ff5bf8] border border-[#ff5bf8]/30 whitespace-nowrap">Coming Soon</span>
+                            </div>
+
+                            <!-- Think-Flash -->
+                            <button class="model-option w-full flex items-center justify-between px-3 py-2.5 rounded-xl hover:bg-[#ff5bf8]/5 text-left transition-colors" data-model="Think-Flash">
+                                <div class="flex flex-col">
+                                    <span class="text-sm font-semibold">Think-Flash</span>
+                                    <span class="text-[10px] text-yellow-500 font-medium">Ultra-fast &amp; lightweight</span>
+                                </div>
+                            </button>
+
+                            <!-- Think-Pro -->
+                            <button class="model-option w-full flex items-center justify-between px-3 py-2.5 rounded-xl hover:bg-[#ff5bf8]/5 text-left transition-colors" data-model="Think-Pro">
+                                <div class="flex flex-col">
+                                    <span class="text-sm font-semibold">Think-Pro</span>
+                                    <span class="text-[10px] text-purple-500 font-medium">Expert-level reasoning</span>
+                                </div>
+                            </button>
+
+                            <!-- Think-Search -->
+                            <button class="model-option w-full flex items-center justify-between px-3 py-2.5 rounded-xl hover:bg-[#ff5bf8]/5 text-left transition-colors" data-model="Think-Search">
+                                <div class="flex flex-col">
+                                    <span class="text-sm font-semibold">Think-Search</span>
+                                    <span class="text-[10px] text-blue-500 font-medium">Online web-searching model</span>
+                                </div>
+                            </button>
                         </div>
                     </div>
                 </div>
