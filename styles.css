@@ -170,7 +170,9 @@ body {
 
 /* Message Animations */
 @keyframes fadeInUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes slideUp { from { opacity: 0; transform: translateY(30px) scale(0.95); } to { opacity: 1; transform: translateY(0) scale(1); } }
 .message-enter { animation: fadeInUp 0.4s ease-out forwards; }
+.animate-slide-up { animation: slideUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
 
 /* Button Vibration Effect */
 @keyframes btn-vibrate {
@@ -290,6 +292,7 @@ aside {
     box-shadow: 2px 0 20px rgba(255, 91, 248, 0.05);
 }
 main { background: var(--main-bg); }
+#input-container { transition: bottom 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
 header { background-color: var(--top-bar-bg); border-color: var(--border-color); }
 .chat-history-item:hover { background-color: var(--border-color); }
 .logo-container { border-color: var(--logo-border) !important; background-color: var(--logo-border); }

@@ -1,12 +1,80 @@
 document.addEventListener('DOMContentLoaded', () => {
-    // Authentication Check
-    if (localStorage.getItem('think_ai_logged_in') !== 'true') {
-        window.location.href = 'login.html';
-        return;
-    }
-
     // Initialize Lucide Icons
     lucide.createIcons();
+
+    // Profile Management Logic
+    const profileOverlay = document.getElementById('profile-setup-overlay');
+    const setupNameInput = document.getElementById('setup-name-input');
+    const saveProfileBtn = document.getElementById('save-profile-btn');
+    const photoInput = document.getElementById('profile-photo-input');
+    const avatarPreviewContainer = document.getElementById('avatar-preview-container');
+    const avatarPreviewImg = document.getElementById('avatar-preview-img');
+    const avatarPlaceholder = document.getElementById('avatar-placeholder');
+    
+    const userDisplayName = document.getElementById('user-display-name');
+    const userAvatarImg = document.getElementById('user-avatar-img');
+    const userAvatarInitial = document.getElementById('user-avatar-initial');
+
+    let selectedAvatarData = localStorage.getItem('user_photo') || null;
+
+    const updateSidebarProfile = () => {
+        const name = localStorage.getItem('user_name') || 'User';
+        const photo = localStorage.getItem('user_photo');
+        
+        if (userDisplayName) userDisplayName.textContent = name;
+        if (photo && userAvatarImg) {
+            userAvatarImg.src = photo;
+            userAvatarImg.classList.remove('hidden');
+            if (userAvatarInitial) userAvatarInitial.classList.add('hidden');
+        } else if (userAvatarInitial) {
+            userAvatarInitial.textContent = name.charAt(0).toUpperCase();
+            userAvatarInitial.classList.remove('hidden');
+            if (userAvatarImg) userAvatarImg.classList.add('hidden');
+        }
+    };
+
+    // Check if profile exists
+    if (!localStorage.getItem('user_name')) {
+        profileOverlay?.classList.remove('hidden');
+    } else {
+        updateSidebarProfile();
+    }
+
+    // Avatar Selection Logic
+    avatarPreviewContainer?.addEventListener('click', () => photoInput?.click());
+    
+    photoInput?.addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                selectedAvatarData = event.target.result;
+                if (avatarPreviewImg) {
+                    avatarPreviewImg.src = selectedAvatarData;
+                    avatarPreviewImg.classList.remove('hidden');
+                    avatarPlaceholder?.classList.add('hidden');
+                }
+            };
+            reader.readAsDataURL(file);
+        }
+    });
+
+    // Save Profile Logic
+    saveProfileBtn?.addEventListener('click', () => {
+        const name = setupNameInput?.value.trim();
+        if (!name) {
+            alert('Please enter your name');
+            return;
+        }
+
+        localStorage.setItem('user_name', name);
+        if (selectedAvatarData) {
+            localStorage.setItem('user_photo', selectedAvatarData);
+        }
+
+        updateSidebarProfile();
+        profileOverlay?.classList.add('hidden');
+    });
 
     // State Management
     const savedChats = JSON.parse(localStorage.getItem('think_ai_chats') || '[]');
@@ -92,13 +160,6 @@ document.addEventListener('DOMContentLoaded', () => {
     topMenuTrigger?.addEventListener('click', (e) => { e.stopPropagation(); topMenu.classList.toggle('show'); });
     modelSelector?.addEventListener('click', (e) => { e.stopPropagation(); modelDropdown.classList.toggle('show'); });
     plusMenuBtn?.addEventListener('click', (e) => { e.stopPropagation(); plusMenu.classList.toggle('show'); });
-
-    // Logout Handler
-    const signOutBtn = document.getElementById('sign-out-btn');
-    signOutBtn?.addEventListener('click', () => {
-        localStorage.removeItem('think_ai_logged_in');
-        window.location.href = 'login.html';
-    });
 
     // Theme Logic (3-way toggle: Light -> Dark -> Neon)
     const toggleTheme = () => {
@@ -213,6 +274,13 @@ document.addEventListener('DOMContentLoaded', () => {
     const renderChat = (chatId) => {
         const chat = state.chats.find(c => c.id === chatId);
         if (!chat) return;
+
+        // Update Header Info
+        const headerTitle = document.getElementById('active-chat-title');
+        const pinIcon = document.getElementById('pinned-status-icon');
+        if (headerTitle) headerTitle.textContent = chat.title || 'New Chat';
+        if (pinIcon) pinIcon.classList.toggle('hidden', !chat.isPinned);
+
         chatContainer.innerHTML = '';
         if (chat.messages.length === 0) {
             chatContainer.appendChild(initialState);
@@ -273,6 +341,11 @@ document.addEventListener('DOMContentLoaded', () => {
             saveChats();
             const span = document.querySelector(`.chat-history-item[data-id="${chatId}"] span`);
             if (span) span.textContent = chat.title;
+            // Update header if active
+            if (state.activeChatId === chatId) {
+                const headerTitle = document.getElementById('active-chat-title');
+                if (headerTitle) headerTitle.textContent = chat.title;
+            }
         }
     };
 
@@ -287,29 +360,68 @@ document.addEventListener('DOMContentLoaded', () => {
         if (icon) { icon.setAttribute('data-lucide', chat.isPinned ? 'pin' : 'message-square'); icon.classList.toggle('text-[#ff5bf8]', chat.isPinned); }
         const pinAction = item.querySelector('.action-pin');
         if (pinAction) pinAction.innerHTML = chat.isPinned ? '<i data-lucide="pin-off" class="w-3 h-3"></i> Unpin' : '<i data-lucide="pin" class="w-3 h-3"></i> Pin';
+        
+        // Update header if active
+        if (state.activeChatId === chatId) {
+            const pinIcon = document.getElementById('pinned-status-icon');
+            if (pinIcon) pinIcon.classList.toggle('hidden', !chat.isPinned);
+        }
+
+        refreshHistoryList();
+    };
+
+    const refreshHistoryList = () => {
+        // Keep the "History" label and "Empty History" message
+        const label = historyContainer.children[0];
+        const empty = document.getElementById('empty-history');
+        
+        // Clear all except label and empty message
+        Array.from(historyContainer.children).forEach(child => {
+            if (child !== label && child !== empty) child.remove();
+        });
+
+        // Filter and Sort: Pinned first, then by ID (newest first)
+        const chatsToDisplay = state.chats
+            .filter(c => c.messages && c.messages.length > 0)
+            .sort((a, b) => {
+                if (a.isPinned && !b.isPinned) return -1;
+                if (!a.isPinned && b.isPinned) return 1;
+                return b.id - a.id;
+            });
+
+        if (chatsToDisplay.length === 0) {
+            if (empty) empty.style.display = 'block';
+        } else {
+            if (empty) empty.style.display = 'none';
+            // Use appendChild instead of insertBefore since we sorted them
+            chatsToDisplay.forEach(chat => addToHistoryUI(chat, false));
+        }
         lucide.createIcons();
     };
 
     // UI History
-    const addToHistoryUI = (chat) => {
+    const addToHistoryUI = (chat, isPrepend = true) => {
         if (emptyHistory) emptyHistory.style.display = 'none';
         const historyItem = document.createElement('div');
         historyItem.dataset.id = chat.id;
-        historyItem.className = 'chat-history-item group flex items-center gap-3 px-3 py-2.5 rounded-lg cursor-pointer transition-colors hover:bg-white/50 animate-enter relative';
+        historyItem.className = `chat-history-item group flex items-center gap-3 px-3 py-2.5 rounded-lg cursor-pointer transition-colors hover:bg-white/50 animate-enter relative ${parseInt(historyItem.dataset.id) === state.activeChatId ? 'bg-white shadow-sm border' : ''}`;
+        
         historyItem.innerHTML = `
-            <i data-lucide="message-square" class="w-4 h-4 text-gray-400"></i>
+            <i data-lucide="${chat.isPinned ? 'pin' : 'message-square'}" class="w-4 h-4 ${chat.isPinned ? 'text-[#ff5bf8]' : 'text-gray-400'}"></i>
             <span class="flex-1 text-sm truncate text-gray-500">${chat.title}</span>
             <div class="relative flex items-center opacity-0 group-hover:opacity-100 transition-opacity">
                 <button class="menu-trigger p-1 hover:bg-gray-200 rounded-md"><i data-lucide="more-horizontal" class="w-4 h-4 text-gray-400"></i></button>
                 <div class="history-menu dropdown-content absolute right-0 top-full mt-1 bg-white border border-gray-100 rounded-xl shadow-2xl z-[100] w-32 p-1">
                     <button class="action-rename w-full flex items-center gap-2 px-2 py-1.5 text-xs text-gray-600 hover:bg-gray-50 rounded-md"><i data-lucide="edit-2" class="w-3 h-3"></i> Rename</button>
-                    <button class="action-pin w-full flex items-center gap-2 px-2 py-1.5 text-xs text-gray-600 hover:bg-gray-50 rounded-md"><i data-lucide="pin" class="w-3 h-3"></i> Pin</button>
+                    <button class="action-pin w-full flex items-center gap-2 px-2 py-1.5 text-xs text-gray-600 hover:bg-gray-50 rounded-md"><i data-lucide="${chat.isPinned ? 'pin-off' : 'pin'}" class="w-3 h-3"></i> ${chat.isPinned ? 'Unpin' : 'Pin'}</button>
                     <button class="action-share w-full flex items-center gap-2 px-2 py-1.5 text-xs text-gray-600 hover:bg-gray-50 rounded-md"><i data-lucide="share-2" class="w-3 h-3"></i> Share</button>
                     <div class="border-t border-gray-50 my-1"></div>
                     <button class="action-delete w-full flex items-center gap-2 px-2 py-1.5 text-xs text-red-500 hover:bg-red-50 rounded-md"><i data-lucide="trash-2" class="w-3 h-3"></i> Delete</button>
                 </div>
             </div>
         `;
+        if (chat.isPinned) historyItem.classList.add('pinned-item');
+        
         historyItem.addEventListener('click', (e) => { if (!e.target.closest('.menu-trigger') && !e.target.closest('.history-menu')) { state.activeChatId = chat.id; renderChat(chat.id); } });
         const menuTrigger = historyItem.querySelector('.menu-trigger');
         const menu = historyItem.querySelector('.history-menu');
@@ -318,7 +430,12 @@ document.addEventListener('DOMContentLoaded', () => {
         historyItem.querySelector('.action-pin').addEventListener('click', (e) => { e.stopPropagation(); pinChat(chat.id); menu.classList.remove('show'); });
         historyItem.querySelector('.action-share').addEventListener('click', (e) => { e.stopPropagation(); alert("Link copied!"); menu.classList.remove('show'); });
         historyItem.querySelector('.action-delete').addEventListener('click', (e) => { e.stopPropagation(); deleteChat(chat.id); });
-        historyContainer.insertBefore(historyItem, historyContainer.children[1]);
+        
+        if (isPrepend) {
+            historyContainer.insertBefore(historyItem, historyContainer.children[1]);
+        } else {
+            historyContainer.appendChild(historyItem);
+        }
         lucide.createIcons();
     };
 
@@ -421,7 +538,7 @@ document.addEventListener('DOMContentLoaded', () => {
         lucide.createIcons();
     };
 
-    const API_KEY = 'AIzaSyCxJtD_DeXGRw3guOQg0MjxRIFIFA8itis'; // User's Gemini API Key
+    const API_KEY = 'AIzaSyCxJtD_DeXGRw3guOQg0MjxRIFIFA8itis';
 
     const handleSend = async () => {
         if (state.isAIProcessing) return;
@@ -433,50 +550,42 @@ document.addEventListener('DOMContentLoaded', () => {
             chatInput.value = '';
             chatInput.style.height = 'auto';
 
-            // Show loading state
             state.isAIProcessing = true;
             updateSendButtonState();
 
-            if (API_KEY === 'YOUR_GEMINI_API_KEY') {
-                setTimeout(() => {
-                    state.isAIProcessing = false;
-                    updateSendButtonState();
-                    appendMessageToUI("⚠️ **API Key Missing!**\nTo get real answers to anything you ask, you need to add an API key.\n\n1. Go to Google AI Studio to get a free Gemini API key.\n2. Open `script.js` in your editor.\n3. Replace `'YOUR_GEMINI_API_KEY'` on line 369 with your actual key.", false);
-                    lucide.createIcons();
-                }, 1000);
-                return;
-            }
-
             try {
-                // Prepare conversation history for the AI
+                // All models now use Gemini since other keys were removed
                 const history = currentChat.messages.map(msg => ({
                     role: msg.isUser ? "user" : "model",
                     parts: [{ text: msg.text }]
                 }));
-
-                // Add mood context if selected
-                const mood = currentChat?.mood;
-                if (mood) {
-                    const intensity = currentChat?.intensity || 50;
-                    history[history.length - 1].parts[0].text += `\n\n(Respond to this in a ${mood} tone, with an intensity of ${intensity}/100)`;
-                }
-
-                // Call the real Google Gemini API
+                
                 const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${API_KEY}`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ contents: history })
+                    body: JSON.stringify({ 
+                        contents: history,
+                        systemInstruction: {
+                            parts: [{ text: "You are ThinkBase AI, a helpful and natural-sounding AI assistant created by Fortra. Only mention that you were made by Fortra when specifically asked about your origin or creator. Otherwise, respond naturally to greetings and questions." }]
+                        },
+                        safetySettings: [
+                            { category: "HARM_CATEGORY_HARASSMENT", threshold: "BLOCK_NONE" },
+                            { category: "HARM_CATEGORY_HATE_SPEECH", threshold: "BLOCK_NONE" },
+                            { category: "HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold: "BLOCK_NONE" },
+                            { category: "HARM_CATEGORY_DANGEROUS_CONTENT", threshold: "BLOCK_NONE" }
+                        ]
+                    })
                 });
 
                 const data = await response.json();
-                state.isAIProcessing = false; // Reset before appending so streaming works
-                
+                state.isAIProcessing = false;
+
                 if (data.error) {
                     updateSendButtonState();
                     appendMessageToUI(`⚠️ **API Error:** ${data.error.message}`, false);
                 } else if (data.candidates && data.candidates.length > 0) {
                     const aiText = data.candidates[0].content.parts[0].text;
-                    appendMessageToUI(aiText, false);
+                    appendMessageToUI(aiText, false, true, false); // Instant display
                 } else {
                     updateSendButtonState();
                     appendMessageToUI("Sorry, I received an invalid response from the AI.", false);
@@ -484,9 +593,9 @@ document.addEventListener('DOMContentLoaded', () => {
             } catch (error) {
                 state.isAIProcessing = false;
                 updateSendButtonState();
-                appendMessageToUI("Error connecting to the AI. Please check your internet connection and API key.", false);
+                appendMessageToUI(`⚠️ **Error:** ${error.message}`, false);
             }
-            
+
             lucide.createIcons();
         }
     };
@@ -499,31 +608,41 @@ document.addEventListener('DOMContentLoaded', () => {
     document.querySelector('.action-share-active')?.addEventListener('click', () => { alert("Link copied!"); topMenu.classList.remove('show'); });
     document.querySelector('.action-delete-active')?.addEventListener('click', () => { if (state.activeChatId) deleteChat(state.activeChatId); topMenu.classList.remove('show'); });
 
-    window.addEventListener('click', () => { 
+    window.addEventListener('click', () => {
         document.querySelectorAll('.dropdown-content').forEach(m => m.classList.remove('show'));
     });
+
+    // Keyboard Handling for Mobile (Phone, Tab, TV, etc.)
+    const inputContainer = document.getElementById('input-container');
+    if (window.visualViewport) {
+        window.visualViewport.addEventListener('resize', () => {
+            const viewport = window.visualViewport;
+            const offset = window.innerHeight - viewport.height;
+            
+            if (offset > 50) { // Keyboard is likely shown
+                inputContainer.style.bottom = `${offset}px`;
+                // Add extra padding for small screens/watches
+                if (window.innerWidth < 400) {
+                    inputContainer.style.padding = '12px';
+                }
+            } else {
+                inputContainer.style.bottom = '0';
+                if (window.innerWidth < 400) {
+                    inputContainer.style.padding = '24px';
+                }
+            }
+            chatContainer.scrollTo({ top: chatContainer.scrollHeight });
+        });
+    }
 
     // Restore history on load
     const validChats = state.chats.filter(c => c.messages && c.messages.length > 0);
     if (validChats.length > 0) {
-        validChats.forEach(chat => {
-            chat.isAddedToHistory = true;
-            addToHistoryUI(chat);
-            if (chat.isPinned) {
-                const item = document.querySelector(`.chat-history-item[data-id="${chat.id}"]`);
-                if (item) {
-                    item.classList.add('pinned-item');
-                    const icon = item.querySelector('i:first-child');
-                    if (icon) { icon.setAttribute('data-lucide', 'pin'); icon.classList.add('text-[#ff5bf8]'); }
-                    const pinAction = item.querySelector('.action-pin');
-                    if (pinAction) pinAction.innerHTML = '<i data-lucide="pin-off" class="w-3 h-3"></i> Unpin';
-                }
-            }
-        });
+        validChats.forEach(chat => { chat.isAddedToHistory = true; });
+        refreshHistoryList();
         const lastChat = validChats[validChats.length - 1];
         state.activeChatId = lastChat.id;
         renderChat(lastChat.id);
-        lucide.createIcons();
     } else {
         startNewChat();
     }
