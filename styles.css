@@ -249,6 +249,14 @@ body {
     text-decoration-thickness: 2px;
     text-shadow: 0 0 8px rgba(255, 91, 248, 0.4);
 }
+/* Only links sent by the user in user bubbles are blue */
+.user-bubble .chat-link {
+    color: #3b82f6 !important;
+}
+.user-bubble .chat-link:hover {
+    color: #60a5fa !important;
+    text-shadow: 0 0 8px rgba(59, 130, 246, 0.5);
+}
 .dark-mode .chat-link {
     color: #ff7efb;
 }
