@@ -262,12 +262,48 @@ document.addEventListener('DOMContentLoaded', () => {
         checkIcon.setAttribute('data-lucide', 'check');
         checkIcon.className = 'check-icon w-4 h-4 text-[#ff5bf8]';
         selectedOption.appendChild(checkIcon);
+
+        // Sync with web search globe toggle
+        const searchToggleBtn = document.getElementById('web-search-toggle');
+        if (model === 'Think-Search') {
+            state.isWebSearchEnabled = true;
+            if (searchToggleBtn) {
+                searchToggleBtn.classList.remove('text-gray-400');
+                searchToggleBtn.classList.add('text-[#ff5bf8]', 'bg-[#ff5bf8]/10', 'shadow-[0_0_10px_rgba(255,91,248,0.2)]');
+            }
+        } else {
+            state.isWebSearchEnabled = false;
+            if (searchToggleBtn) {
+                searchToggleBtn.classList.add('text-gray-400');
+                searchToggleBtn.classList.remove('text-[#ff5bf8]', 'bg-[#ff5bf8]/10', 'shadow-[0_0_10px_rgba(255,91,248,0.2)]');
+            }
+        }
+
         lucide.createIcons();
         modelDropdown.classList.remove('show');
     };
 
     document.querySelectorAll('.model-option').forEach(option => {
         option.addEventListener('click', (e) => { e.stopPropagation(); updateModelSelection(option); });
+    });
+
+    // Web Search Globe Toggle Button Logic
+    const searchToggleBtn = document.getElementById('web-search-toggle');
+    searchToggleBtn?.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (!state.isWebSearchEnabled) {
+            // Store previous model if it wasn't already Think-Search
+            if (state.activeModel !== 'Think-Search') {
+                state.previousModel = state.activeModel;
+            }
+            const option = document.querySelector('.model-option[data-model="Think-Search"]');
+            if (option) updateModelSelection(option);
+        } else {
+            // Restore previous model
+            const prev = state.previousModel || 'Think-Chat';
+            const option = document.querySelector(`.model-option[data-model="${prev}"]`);
+            if (option) updateModelSelection(option);
+        }
     });
 
     // Chat Rendering
