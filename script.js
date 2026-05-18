@@ -566,7 +566,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     body: JSON.stringify({ 
                         contents: history,
                         systemInstruction: {
-                            parts: [{ text: "You are ThinkBase AI, a helpful and natural-sounding AI assistant created by Fortra. Only mention that you were made by Fortra when specifically asked about your origin or creator. Otherwise, respond naturally to greetings and questions." }]
+                            parts: [{ text: "You are Think AI, a helpful and natural-sounding AI assistant created by LYFT. Only mention that you were made by LYFT (stylized as LYF↑) when specifically asked about your origin or creator. Otherwise, respond naturally to greetings and questions." }]
                         },
                         safetySettings: [
                             { category: "HARM_CATEGORY_HARASSMENT", threshold: "BLOCK_NONE" },
