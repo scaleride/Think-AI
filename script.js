@@ -545,7 +545,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const updateSendButtonState = () => {
         if (state.isAIProcessing) {
             sendBtn.classList.add('opacity-50', 'cursor-not-allowed', 'scale-95');
-            sendBtn.innerHTML = '<i data-lucide="loader-2" class="w-5 h-5 animate-spin"></i>';
+            sendBtn.innerHTML = '<i data-lucide="arrow-up" class="w-5 h-5 animate-arrow-up-loading"></i>';
         } else {
             sendBtn.classList.remove('opacity-50', 'cursor-not-allowed', 'scale-95');
             sendBtn.innerHTML = '<i data-lucide="arrow-up" class="w-5 h-5"></i>';
@@ -601,6 +601,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 } else if (data.candidates && data.candidates.length > 0) {
                     const aiText = data.candidates[0].content.parts[0].text;
                     appendMessageToUI(aiText, false, true, false); // Instant display
+                    updateSendButtonState();
                 } else {
                     updateSendButtonState();
                     appendMessageToUI("Sorry, I received an invalid response from the AI.", false);
