@@ -456,7 +456,22 @@ document.addEventListener('DOMContentLoaded', () => {
     const appendMessageToUI = (text, isUser = true, saveToState = true, shouldStream = true) => {
         const msgDiv = document.createElement('div');
         msgDiv.className = `flex ${isUser ? 'flex-row-reverse' : ''} gap-4 message-enter`;
-        const avatar = isUser ? '<div class="w-8 h-8 rounded-full avatar-gradient flex items-center justify-center shrink-0 text-[10px] font-bold text-white shadow-md">JD</div>' : `<div class="w-8 h-8 rounded-full bg-white border border-gray-100 flex items-center justify-center shrink-0 shadow-sm overflow-hidden"><img src="f_logo.jpg" alt="Think AI" class="w-full h-full object-cover"></div>`;
+        
+        const userName = localStorage.getItem('user_name') || 'User';
+        const userPhoto = localStorage.getItem('user_photo');
+        
+        let avatar = '';
+        if (isUser) {
+            if (userPhoto) {
+                avatar = `<div class="w-8 h-8 rounded-full bg-white border border-gray-100 flex items-center justify-center shrink-0 shadow-sm overflow-hidden"><img src="${userPhoto}" alt="${userName}" class="w-full h-full object-cover"></div>`;
+            } else {
+                const initial = userName.charAt(0).toUpperCase();
+                avatar = `<div class="w-8 h-8 rounded-full avatar-gradient flex items-center justify-center shrink-0 text-[10px] font-bold text-white shadow-md">${initial}</div>`;
+            }
+        } else {
+            avatar = `<div class="w-8 h-8 rounded-full bg-white border border-gray-100 flex items-center justify-center shrink-0 shadow-sm overflow-hidden"><img src="f_logo.jpg" alt="Think AI" class="w-full h-full object-cover"></div>`;
+        }
+        
         const bubble = document.createElement('div');
         bubble.className = `px-5 py-3 ${isUser ? 'user-bubble text-white' : 'ai-bubble text-gray-700'} text-sm leading-relaxed`;
         msgDiv.innerHTML = avatar;
