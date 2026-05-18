@@ -185,14 +185,14 @@ document.addEventListener('DOMContentLoaded', () => {
             themeText.textContent = 'Neon Mode';
             toggleTrack.style.backgroundColor = '#ff5bf8';
             toggleThumb.style.left = '18px';
-            if (mainLogo) mainLogo.src = 'logo_neon.jpg';
+            if (mainLogo) mainLogo.src = 'logo_neon.png';
         } else {
             state.currentTheme = 'light';
             themeIcon.setAttribute('data-lucide', 'sun');
             themeText.textContent = 'Light Mode';
             toggleTrack.style.backgroundColor = '#e5e7eb';
             toggleThumb.style.left = '2px';
-            if (mainLogo) mainLogo.src = 'logo.jpg';
+            if (mainLogo) mainLogo.src = 'logo.png';
         }
         lucide.createIcons();
     };
