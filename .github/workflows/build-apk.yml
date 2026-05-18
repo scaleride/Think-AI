@@ -51,29 +51,26 @@ jobs:
     - name: Configure Android App Launcher Icons using Jimp
       run: |
         npm install jimp
+        # Delete adaptive icons to force Android to use the pre-rendered high-quality PNGs we generate
+        rm -rf android/app/src/main/res/mipmap-anydpi-v26
+        
         cat << 'EOF' > resize-icons.js
         const Jimp = require('jimp');
         const fs = require('fs');
         const path = require('path');
 
         const sizes = [
-          { path: 'mipmap-mdpi/ic_launcher.png', size: 48 },
-          { path: 'mipmap-hdpi/ic_launcher.png', size: 72 },
-          { path: 'mipmap-xhdpi/ic_launcher.png', size: 96 },
-          { path: 'mipmap-xxhdpi/ic_launcher.png', size: 144 },
-          { path: 'mipmap-xxxhdpi/ic_launcher.png', size: 192 },
+          { path: 'mipmap-mdpi/ic_launcher.png', size: 48, round: false },
+          { path: 'mipmap-hdpi/ic_launcher.png', size: 72, round: false },
+          { path: 'mipmap-xhdpi/ic_launcher.png', size: 96, round: false },
+          { path: 'mipmap-xxhdpi/ic_launcher.png', size: 144, round: false },
+          { path: 'mipmap-xxxhdpi/ic_launcher.png', size: 192, round: false },
           
-          { path: 'mipmap-mdpi/ic_launcher_round.png', size: 48 },
-          { path: 'mipmap-hdpi/ic_launcher_round.png', size: 72 },
-          { path: 'mipmap-xhdpi/ic_launcher_round.png', size: 96 },
-          { path: 'mipmap-xxhdpi/ic_launcher_round.png', size: 144 },
-          { path: 'mipmap-xxxhdpi/ic_launcher_round.png', size: 192 },
-          
-          { path: 'mipmap-mdpi/ic_launcher_foreground.png', size: 162 },
-          { path: 'mipmap-hdpi/ic_launcher_foreground.png', size: 243 },
-          { path: 'mipmap-xhdpi/ic_launcher_foreground.png', size: 324 },
-          { path: 'mipmap-xxhdpi/ic_launcher_foreground.png', size: 486 },
-          { path: 'mipmap-xxxhdpi/ic_launcher_foreground.png', size: 648 }
+          { path: 'mipmap-mdpi/ic_launcher_round.png', size: 48, round: true },
+          { path: 'mipmap-hdpi/ic_launcher_round.png', size: 72, round: true },
+          { path: 'mipmap-xhdpi/ic_launcher_round.png', size: 96, round: true },
+          { path: 'mipmap-xxhdpi/ic_launcher_round.png', size: 144, round: true },
+          { path: 'mipmap-xxxhdpi/ic_launcher_round.png', size: 192, round: true }
         ];
 
         async function resize() {
@@ -87,6 +84,9 @@ jobs:
               fs.mkdirSync(dir, { recursive: true });
             }
             const cloned = image.clone();
+            if (item.round) {
+              cloned.circle();
+            }
             await cloned.resize(item.size, item.size).writeAsync(dest);
             console.log(`Generated ${dest} (${item.size}x${item.size})`);
           }
