@@ -82,6 +82,7 @@ document.addEventListener('DOMContentLoaded', () => {
         isSidebarCollapsed: false,
         activeModel: 'Think-Chat',
         isWebSearchEnabled: false,
+        isVoiceInputActive: false,
         activeChatId: null,
         chats: savedChats,
         currentTheme: 'light', // 'light', 'dark', or 'neon'
@@ -105,6 +106,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const sendBtn = document.getElementById('send-btn');
     const plusMenuBtn = document.getElementById('plus-menu-btn');
     const plusMenu = document.getElementById('plus-menu');
+    const voiceInputBtn = document.getElementById('voice-input-btn');
     const modelSelector = document.getElementById('model-selector');
     const modelDropdown = document.getElementById('model-dropdown');
     const initialState = document.getElementById('initial-state');
@@ -579,12 +581,19 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     const updateSendButtonState = () => {
-        if (state.isAIProcessing) {
-            sendBtn.classList.add('opacity-50', 'cursor-not-allowed', 'scale-95');
-            sendBtn.innerHTML = '<i data-lucide="arrow-up" class="w-5 h-5 animate-arrow-up-loading"></i>';
-        } else {
+        if (state.isVoiceInputActive) {
             sendBtn.classList.remove('opacity-50', 'cursor-not-allowed', 'scale-95');
-            sendBtn.innerHTML = '<i data-lucide="arrow-up" class="w-5 h-5"></i>';
+            sendBtn.classList.add('animate-mic-record');
+            sendBtn.innerHTML = '<i data-lucide="mic" class="w-5 h-5 animate-mic-blink"></i>';
+        } else {
+            sendBtn.classList.remove('animate-mic-record');
+            if (state.isAIProcessing) {
+                sendBtn.classList.add('opacity-50', 'cursor-not-allowed', 'scale-95');
+                sendBtn.innerHTML = '<i data-lucide="arrow-up" class="w-5 h-5 animate-arrow-up-loading"></i>';
+            } else {
+                sendBtn.classList.remove('opacity-50', 'cursor-not-allowed', 'scale-95');
+                sendBtn.innerHTML = '<i data-lucide="arrow-up" class="w-5 h-5"></i>';
+            }
         }
         lucide.createIcons();
     };
@@ -592,6 +601,10 @@ document.addEventListener('DOMContentLoaded', () => {
     const API_KEY = 'AIzaSyCxJtD_DeXGRw3guOQg0MjxRIFIFA8itis';
 
     const handleSend = async () => {
+        if (state.isVoiceInputActive) {
+            stopVoiceInput();
+            return;
+        }
         if (state.isAIProcessing) return;
         const text = chatInput.value.trim();
         if (text) {
@@ -662,6 +675,89 @@ document.addEventListener('DOMContentLoaded', () => {
 
     window.addEventListener('click', () => {
         document.querySelectorAll('.dropdown-content').forEach(m => m.classList.remove('show'));
+    });
+
+    // Speech Recognition dictation setup
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    let recognition = null;
+    
+    const startVoiceInput = () => {
+        if (!recognition) {
+            alert("Speech recognition is not supported in this browser. Please try Chrome, Edge, or Safari.");
+            return;
+        }
+        state.isVoiceInputActive = true;
+        updateSendButtonState();
+        if (voiceInputBtn) {
+            voiceInputBtn.classList.remove('text-gray-400');
+            voiceInputBtn.classList.add('text-[#ff5bf8]', 'bg-[#ff5bf8]/10');
+        }
+        try {
+            recognition.start();
+        } catch (e) {
+            console.error('Failed to start recognition:', e);
+        }
+    };
+    
+    const stopVoiceInput = () => {
+        state.isVoiceInputActive = false;
+        updateSendButtonState();
+        if (voiceInputBtn) {
+            voiceInputBtn.classList.add('text-gray-400');
+            voiceInputBtn.classList.remove('text-[#ff5bf8]', 'bg-[#ff5bf8]/10');
+        }
+        if (recognition) {
+            try {
+                recognition.stop();
+            } catch (e) {
+                console.error('Failed to stop recognition:', e);
+            }
+        }
+    };
+    
+    const toggleVoiceInput = () => {
+        if (state.isVoiceInputActive) {
+            stopVoiceInput();
+        } else {
+            startVoiceInput();
+        }
+    };
+
+    if (SpeechRecognition) {
+        recognition = new SpeechRecognition();
+        recognition.continuous = true;
+        recognition.interimResults = true;
+        recognition.lang = 'en-US';
+        
+        recognition.onresult = (event) => {
+            let finalTranscript = '';
+            for (let i = event.resultIndex; i < event.results.length; ++i) {
+                if (event.results[i].isFinal) {
+                    finalTranscript += event.results[i][0].transcript;
+                }
+            }
+            if (finalTranscript) {
+                const currentText = chatInput.value;
+                chatInput.value = currentText + (currentText ? ' ' : '') + finalTranscript;
+                chatInput.dispatchEvent(new Event('input'));
+            }
+        };
+        
+        recognition.onend = () => {
+            if (state.isVoiceInputActive) {
+                stopVoiceInput();
+            }
+        };
+        
+        recognition.onerror = (event) => {
+            console.error('Speech recognition error:', event.error);
+            stopVoiceInput();
+        };
+    }
+
+    voiceInputBtn?.addEventListener('click', (e) => {
+        e.stopPropagation();
+        toggleVoiceInput();
     });
 
     // Keyboard Handling for Mobile (Phone, Tab, TV, etc.)

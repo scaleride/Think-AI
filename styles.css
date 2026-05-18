@@ -513,3 +513,28 @@ html {
 .animate-arrow-up-loading {
     animation: arrow-slide-up 0.8s infinite linear;
 }
+
+/* Mic active blinking and pulse animations */
+@keyframes mic-record-pulse {
+    0%, 100% {
+        transform: scale(1);
+        box-shadow: 0 0 0 0 rgba(255, 91, 248, 0.7);
+        background-color: #ff5bf8;
+    }
+    50% {
+        transform: scale(1.05);
+        box-shadow: 0 0 15px 5px rgba(255, 91, 248, 0.4);
+        background-color: #d946ef;
+    }
+}
+.animate-mic-record {
+    animation: mic-record-pulse 1.2s infinite ease-in-out !important;
+}
+
+@keyframes mic-blink {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.3; }
+}
+.animate-mic-blink {
+    animation: mic-blink 1s infinite ease-in-out !important;
+}
