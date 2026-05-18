@@ -48,25 +48,54 @@ jobs:
       run: |
         npx cap add android
 
-    - name: Configure Android App Launcher Icons using ImageMagick
+    - name: Configure Android App Launcher Icons using Jimp
       run: |
-        convert ai_avatar.png -resize 48x48 android/app/src/main/res/mipmap-mdpi/ic_launcher.png
-        convert ai_avatar.png -resize 72x72 android/app/src/main/res/mipmap-hdpi/ic_launcher.png
-        convert ai_avatar.png -resize 96x96 android/app/src/main/res/mipmap-xhdpi/ic_launcher.png
-        convert ai_avatar.png -resize 144x144 android/app/src/main/res/mipmap-xxhdpi/ic_launcher.png
-        convert ai_avatar.png -resize 192x192 android/app/src/main/res/mipmap-xxxhdpi/ic_launcher.png
+        npm install jimp
+        cat << 'EOF' > resize-icons.js
+        const Jimp = require('jimp');
+        const fs = require('fs');
+        const path = require('path');
 
-        convert ai_avatar.png -resize 48x48 android/app/src/main/res/mipmap-mdpi/ic_launcher_round.png
-        convert ai_avatar.png -resize 72x72 android/app/src/main/res/mipmap-hdpi/ic_launcher_round.png
-        convert ai_avatar.png -resize 96x96 android/app/src/main/res/mipmap-xhdpi/ic_launcher_round.png
-        convert ai_avatar.png -resize 144x144 android/app/src/main/res/mipmap-xxhdpi/ic_launcher_round.png
-        convert ai_avatar.png -resize 192x192 android/app/src/main/res/mipmap-xxxhdpi/ic_launcher_round.png
+        const sizes = [
+          { path: 'mipmap-mdpi/ic_launcher.png', size: 48 },
+          { path: 'mipmap-hdpi/ic_launcher.png', size: 72 },
+          { path: 'mipmap-xhdpi/ic_launcher.png', size: 96 },
+          { path: 'mipmap-xxhdpi/ic_launcher.png', size: 144 },
+          { path: 'mipmap-xxxhdpi/ic_launcher.png', size: 192 },
+          
+          { path: 'mipmap-mdpi/ic_launcher_round.png', size: 48 },
+          { path: 'mipmap-hdpi/ic_launcher_round.png', size: 72 },
+          { path: 'mipmap-xhdpi/ic_launcher_round.png', size: 96 },
+          { path: 'mipmap-xxhdpi/ic_launcher_round.png', size: 144 },
+          { path: 'mipmap-xxxhdpi/ic_launcher_round.png', size: 192 },
+          
+          { path: 'mipmap-mdpi/ic_launcher_foreground.png', size: 162 },
+          { path: 'mipmap-hdpi/ic_launcher_foreground.png', size: 243 },
+          { path: 'mipmap-xhdpi/ic_launcher_foreground.png', size: 324 },
+          { path: 'mipmap-xxhdpi/ic_launcher_foreground.png', size: 486 },
+          { path: 'mipmap-xxxhdpi/ic_launcher_foreground.png', size: 648 }
+        ];
 
-        convert ai_avatar.png -resize 162x162 android/app/src/main/res/mipmap-mdpi/ic_launcher_foreground.png
-        convert ai_avatar.png -resize 243x243 android/app/src/main/res/mipmap-hdpi/ic_launcher_foreground.png
-        convert ai_avatar.png -resize 324x324 android/app/src/main/res/mipmap-xhdpi/ic_launcher_foreground.png
-        convert ai_avatar.png -resize 486x486 android/app/src/main/res/mipmap-xxhdpi/ic_launcher_foreground.png
-        convert ai_avatar.png -resize 648x648 android/app/src/main/res/mipmap-xxxhdpi/ic_launcher_foreground.png
+        async function resize() {
+          const image = await Jimp.read('ai_avatar.png');
+          const resDir = path.join('android', 'app', 'src', 'main', 'res');
+          
+          for (const item of sizes) {
+            const dest = path.join(resDir, item.path);
+            const dir = path.dirname(dest);
+            if (!fs.existsSync(dir)) {
+              fs.mkdirSync(dir, { recursive: true });
+            }
+            const cloned = image.clone();
+            await cloned.resize(item.size, item.size).writeAsync(dest);
+            console.log(`Generated ${dest} (${item.size}x${item.size})`);
+          }
+        }
+
+        resize().catch(console.error);
+        EOF
+        node resize-icons.js
+        rm resize-icons.js
 
     - name: Sync Capacitor Projects
       run: |
