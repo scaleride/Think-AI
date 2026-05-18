@@ -1,0 +1,71 @@
+name: Build Android APK
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout Source Code
+      uses: actions/checkout@v3
+
+    - name: Set up Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: 18
+
+    - name: Set up Java JDK 17
+      uses: actions/setup-java@v3
+      with:
+        distribution: 'zulu'
+        java-version: '17'
+
+    - name: Initialize Web Assets Directory
+      run: |
+        mkdir www
+        cp index.html script.js styles.css manifest.json sw.js www/
+        cp *.png www/ || true
+        cp *.jpg www/ || true
+        cp *.jpeg www/ || true
+
+    - name: Install Capacitor CLI & Android Platform
+      run: |
+        npm init -y
+        npm install @capacitor/core@5 @capacitor/cli@5 @capacitor/android@5
+
+    - name: Initialize Capacitor Config
+      run: |
+        npx cap init "Think AI" "com.lyft.thinkai" --web-dir="www"
+
+    - name: Add Android Platform
+      run: |
+        npx cap add android
+
+    - name: Sync Capacitor Projects
+      run: |
+        npx cap sync
+
+    - name: Build APK using Gradle
+      run: |
+        cd android
+        chmod +x gradlew
+        ./gradlew assembleDebug
+
+    - name: Copy APK to root
+      run: |
+        cp android/app/build/outputs/apk/debug/app-debug.apk ./Think_AI.apk
+
+    - name: Commit and Push APK back to Repository
+      run: |
+        git config --global user.name "github-actions[bot]"
+        git config --global user.email "github-actions[bot]@users.noreply.github.com"
+        git add Think_AI.apk
+        git commit -m "Update compiled Think_AI.apk [skip ci]" || echo "No changes to commit"
+        git push origin main
