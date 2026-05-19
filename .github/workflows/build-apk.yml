@@ -96,9 +96,9 @@ jobs:
         const gradlePath = path.join('android', 'app', 'build.gradle');
         if (fs.existsSync(gradlePath)) {
           let content = fs.readFileSync(gradlePath, 'utf8');
-          content = content.replace(/versionName\s+"[^"]+"/, 'versionName "01.2.25.19.2026"');
+          content = content.replace(/versionName\s+"[^"]+"/, 'versionName "0.4"');
           fs.writeFileSync(gradlePath, content, 'utf8');
-          console.log('Updated APK versionName to 01.2.25.19.2026');
+          console.log('Updated APK versionName to 0.4');
         }
 
         resize().catch(console.error);
