@@ -38,7 +38,7 @@ jobs:
     - name: Install Capacitor CLI & Android Platform
       run: |
         npm init -y
-        npm install @capacitor/core@5 @capacitor/cli@5 @capacitor/android@5
+        npm install @capacitor/core@5 @capacitor/cli@5 @capacitor/android@5 @capacitor-community/speech-recognition@5
 
     - name: Initialize Capacitor Config
       run: |

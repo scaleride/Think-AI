@@ -686,36 +686,100 @@ document.addEventListener('DOMContentLoaded', () => {
         document.querySelectorAll('.dropdown-content').forEach(m => m.classList.remove('show'));
     });
 
-    // Speech Recognition dictation setup
+    // Speech Recognition dictation setup (Dual Engine: Web & Native Capacitor)
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     let recognition = null;
-    
-    const startVoiceInput = () => {
-        if (!recognition) {
-            alert("Speech recognition is not supported in this browser. Please try Chrome, Edge, or Safari.");
-            return;
-        }
+    let nativeListener = null;
+
+    const getNativeSpeechPlugin = () => {
+        return window.Capacitor?.Plugins?.SpeechRecognition;
+    };
+
+    const startVoiceInput = async () => {
         state.isVoiceInputActive = true;
         updateSendButtonState();
         if (voiceInputBtn) {
             voiceInputBtn.classList.remove('text-gray-400');
             voiceInputBtn.classList.add('text-[#ff5bf8]', 'bg-[#ff5bf8]/10');
         }
-        try {
-            recognition.start();
-        } catch (e) {
-            console.error('Failed to start recognition:', e);
+
+        const nativeSpeech = getNativeSpeechPlugin();
+        if (nativeSpeech) {
+            try {
+                const { available } = await nativeSpeech.available();
+                if (!available) {
+                    alert("Speech recognition is not supported on this mobile device.");
+                    await stopVoiceInput();
+                    return;
+                }
+                const perm = await nativeSpeech.checkPermissions();
+                if (perm.speechRecognition !== 'granted' || perm.microphone !== 'granted') {
+                    const req = await nativeSpeech.requestPermissions();
+                    if (req.speechRecognition !== 'granted' || req.microphone !== 'granted') {
+                        alert("Microphone & Speech permissions are required for voice typing.");
+                        await stopVoiceInput();
+                        return;
+                    }
+                }
+
+                if (nativeListener) {
+                    await nativeListener.remove();
+                }
+
+                nativeListener = await nativeSpeech.addListener('partialResults', (data) => {
+                    if (data && data.matches && data.matches.length > 0) {
+                        const transcript = data.matches[0];
+                        if (transcript) {
+                            chatInput.value = transcript;
+                            chatInput.dispatchEvent(new Event('input'));
+                        }
+                    }
+                });
+
+                await nativeSpeech.start({
+                    language: "en-US",
+                    partialResults: true,
+                    popup: false
+                });
+            } catch (e) {
+                console.error('Failed to start native speech:', e);
+                await stopVoiceInput();
+            }
+        } else {
+            // Fallback to web browser SpeechRecognition
+            if (!recognition) {
+                alert("Speech recognition is not supported in this browser. Please try Chrome, Edge, or Safari.");
+                stopVoiceInput();
+                return;
+            }
+            try {
+                recognition.start();
+            } catch (e) {
+                console.error('Failed to start recognition:', e);
+            }
         }
     };
-    
-    const stopVoiceInput = () => {
+
+    const stopVoiceInput = async () => {
         state.isVoiceInputActive = false;
         updateSendButtonState();
         if (voiceInputBtn) {
             voiceInputBtn.classList.add('text-gray-400');
             voiceInputBtn.classList.remove('text-[#ff5bf8]', 'bg-[#ff5bf8]/10');
         }
-        if (recognition) {
+
+        const nativeSpeech = getNativeSpeechPlugin();
+        if (nativeSpeech) {
+            try {
+                await nativeSpeech.stop();
+                if (nativeListener) {
+                    await nativeListener.remove();
+                    nativeListener = null;
+                }
+            } catch (e) {
+                console.error('Failed to stop native speech:', e);
+            }
+        } else if (recognition) {
             try {
                 recognition.stop();
             } catch (e) {
@@ -723,7 +787,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
     };
-    
+
     const toggleVoiceInput = () => {
         if (state.isVoiceInputActive) {
             stopVoiceInput();
