@@ -867,4 +867,23 @@ document.addEventListener('DOMContentLoaded', () => {
     } else {
         startNewChat();
     }
+
+    // Configure APK-only versioning details dynamically
+    const isCapacitor = !!window.Capacitor;
+    if (isCapacitor) {
+        // 1. Update Tab Title
+        document.title = "Think AI v01.2.25.19.2026";
+        
+        // 2. Update Sidebar Badge
+        const versionBadge = document.getElementById('sidebar-version-badge');
+        if (versionBadge) {
+            versionBadge.textContent = "v01.2.25.19.2026 | By LYF↑";
+        }
+        
+        // 3. Show Settings Dropdown Version Row
+        const versionRow = document.getElementById('version-settings-row');
+        if (versionRow) {
+            versionRow.classList.remove('hidden');
+        }
+    }
 });
