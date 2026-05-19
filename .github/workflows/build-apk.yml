@@ -116,14 +116,8 @@ jobs:
         chmod +x gradlew
         ./gradlew assembleDebug
 
-    - name: Copy APK to root
-      run: |
-        cp android/app/build/outputs/apk/debug/app-debug.apk ./Think_AI.apk
-
-    - name: Commit and Push APK back to Repository
-      run: |
-        git config --global user.name "github-actions[bot]"
-        git config --global user.email "github-actions[bot]@users.noreply.github.com"
-        git add Think_AI.apk
-        git commit -m "Update compiled Think_AI.apk [skip ci]" || echo "No changes to commit"
-        git push origin main
+    - name: Upload Compiled APK Artifact
+      uses: actions/upload-artifact@v3
+      with:
+        name: Think_AI_APK
+        path: android/app/build/outputs/apk/debug/app-debug.apk
