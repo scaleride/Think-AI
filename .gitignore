@@ -1,7 +1,7 @@
 # Compiled Android binaries
-*.apk
-Think_AI.apk
-Think_AI (Beta) .apk
+# *.apk
+# Think_AI.apk
+# Think_AI (Beta) .apk
 
 # Node dependencies
 node_modules/
