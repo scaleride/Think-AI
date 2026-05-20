@@ -647,10 +647,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Pool of Gemini API keys for seamless automatic rotation on rate limits / errors
     const API_KEYS = [
-        'AIzaSyCxJtD_DeXGRw3guOQg0MjxRIFIFA8itis', // Primary key
-        'AIzaSyBw-YOUR_BACKUP_KEY_2_HERE',        // Backup key 2
-        'AIzaSyAv-YOUR_BACKUP_KEY_3_HERE',        // Backup key 3
-        'AIzaSyCu-YOUR_BACKUP_KEY_4_HERE'         // Backup key 4
+        'AIzaSyDiR7pFjFXduRxZizWrAjTKq9Y241AIQug',
+        'AIzaSyCCqaNWp37877iuGqvClEssjTtsb-AfWHg',
+        'AIzaSyBeJ7p_-Pv5gY4UyEvEYt1BPICsCVaQKXM',
+        'AIzaSyDW8Nf1FBL6WvOKFafhxUCZChJ6X-Yd7z4'
     ];
     let currentKeyIndex = parseInt(localStorage.getItem('think_ai_key_index') || '0');
     if (currentKeyIndex >= API_KEYS.length) {
