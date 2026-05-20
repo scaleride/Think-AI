@@ -607,7 +607,75 @@ document.addEventListener('DOMContentLoaded', () => {
         lucide.createIcons();
     };
 
-    const API_KEY = 'AIzaSyCxJtD_DeXGRw3guOQg0MjxRIFIFA8itis';
+    // Pool of Gemini API keys for seamless automatic rotation on rate limits / errors
+    const API_KEYS = [
+        'AIzaSyCxJtD_DeXGRw3guOQg0MjxRIFIFA8itis', // Primary key
+        'AIzaSyBw-YOUR_BACKUP_KEY_2_HERE',        // Backup key 2
+        'AIzaSyAv-YOUR_BACKUP_KEY_3_HERE',        // Backup key 3
+        'AIzaSyCu-YOUR_BACKUP_KEY_4_HERE'         // Backup key 4
+    ];
+    let currentKeyIndex = parseInt(localStorage.getItem('think_ai_key_index') || '0');
+    if (currentKeyIndex >= API_KEYS.length) {
+        currentKeyIndex = 0;
+        localStorage.setItem('think_ai_key_index', '0');
+    }
+
+    const callGeminiAPI = async (history) => {
+        let attempts = 0;
+        const maxAttempts = API_KEYS.length;
+
+        while (attempts < maxAttempts) {
+            const apiKey = API_KEYS[currentKeyIndex];
+            console.log(`Sending API request using key index: ${currentKeyIndex}`);
+
+            try {
+                const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${apiKey}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        contents: history,
+                        systemInstruction: {
+                            parts: [{ text: "You are Think AI, a helpful and natural-sounding AI assistant created by LYFT. Only mention that you were made by LYFT (stylized as LYF↑) when specifically asked about your origin or creator. Otherwise, respond naturally to greetings and questions." }]
+                        },
+                        safetySettings: [
+                            { category: "HARM_CATEGORY_HARASSMENT", threshold: "BLOCK_NONE" },
+                            { category: "HARM_CATEGORY_HATE_SPEECH", threshold: "BLOCK_NONE" },
+                            { category: "HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold: "BLOCK_NONE" },
+                            { category: "HARM_CATEGORY_DANGEROUS_CONTENT", threshold: "BLOCK_NONE" }
+                        ]
+                    })
+                });
+
+                const data = await response.json();
+
+                // Check for rate limit (429), quota limits, or invalid key issues
+                if (data.error && (response.status === 429 || data.error.code === 429 || data.error.status === 'RESOURCE_EXHAUSTED' || data.error.message.includes('quota') || data.error.message.includes('limit') || data.error.message.includes('API key') || data.error.message.includes('not valid'))) {
+                    console.warn(`API key index ${currentKeyIndex} limit reached or invalid. Silently rotating key...`);
+                    currentKeyIndex = (currentKeyIndex + 1) % API_KEYS.length;
+                    localStorage.setItem('think_ai_key_index', currentKeyIndex.toString());
+                    attempts++;
+                    continue; // Retry with next key in pool
+                }
+
+                // If it is another kind of API error (like safety block, formatting, etc.), just return it
+                if (data.error) {
+                    return { error: data.error };
+                }
+
+                // Success!
+                return { success: true, data: data };
+
+            } catch (error) {
+                console.error(`Network or fetch error with key index ${currentKeyIndex}:`, error);
+                currentKeyIndex = (currentKeyIndex + 1) % API_KEYS.length;
+                localStorage.setItem('think_ai_key_index', currentKeyIndex.toString());
+                attempts++;
+            }
+        }
+
+        // If we got here, all keys in the pool were exhausted
+        return { error: { message: "All Gemini API keys in the key rotation pool have reached their rate/quota limits. Please update your API keys." } };
+    };
 
     const handleSend = async () => {
         if (state.isVoiceInputActive) {
@@ -633,31 +701,14 @@ document.addEventListener('DOMContentLoaded', () => {
                     parts: [{ text: msg.text }]
                 }));
                 
-                const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${API_KEY}`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ 
-                        contents: history,
-                        systemInstruction: {
-                            parts: [{ text: "You are Think AI, a helpful and natural-sounding AI assistant created by LYFT. Only mention that you were made by LYFT (stylized as LYF↑) when specifically asked about your origin or creator. Otherwise, respond naturally to greetings and questions." }]
-                        },
-                        safetySettings: [
-                            { category: "HARM_CATEGORY_HARASSMENT", threshold: "BLOCK_NONE" },
-                            { category: "HARM_CATEGORY_HATE_SPEECH", threshold: "BLOCK_NONE" },
-                            { category: "HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold: "BLOCK_NONE" },
-                            { category: "HARM_CATEGORY_DANGEROUS_CONTENT", threshold: "BLOCK_NONE" }
-                        ]
-                    })
-                });
-
-                const data = await response.json();
+                const result = await callGeminiAPI(history);
                 state.isAIProcessing = false;
 
-                if (data.error) {
+                if (result.error) {
                     updateSendButtonState();
-                    appendMessageToUI(`⚠️ **API Error:** ${data.error.message}`, false);
-                } else if (data.candidates && data.candidates.length > 0) {
-                    const aiText = data.candidates[0].content.parts[0].text;
+                    appendMessageToUI(`⚠️ **API Error:** ${result.error.message}`, false);
+                } else if (result.success && result.data.candidates && result.data.candidates.length > 0) {
+                    const aiText = result.data.candidates[0].content.parts[0].text;
                     appendMessageToUI(aiText, false, true, false); // Instant display
                     updateSendButtonState();
                 } else {
