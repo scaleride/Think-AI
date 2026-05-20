@@ -607,6 +607,44 @@ document.addEventListener('DOMContentLoaded', () => {
         lucide.createIcons();
     };
 
+    // Push Notification Utility (detects when user backgrounds/leaves page while waiting)
+    const requestNotificationPermission = async () => {
+        if ('Notification' in window && Notification.permission === 'default') {
+            try {
+                await Notification.requestPermission();
+            } catch (e) {
+                console.error("Failed to request notification permission:", e);
+            }
+        }
+    };
+
+    const sendPushNotification = (text) => {
+        if (!('Notification' in window) || Notification.permission !== 'granted') return;
+
+        const cleanText = text.replace(/\*\*([^*]+)\*\*/g, '$1')
+                             .replace(/`([^`]+)`/g, '$1');
+        const snippet = cleanText.substring(0, 100) + (cleanText.length > 100 ? '...' : '');
+
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.ready.then(registration => {
+                registration.showNotification('Think AI', {
+                    body: `Your answer is ready: "${snippet}"`,
+                    icon: 'logo.png',
+                    badge: 'logo.png',
+                    vibrate: [200, 100, 200],
+                    tag: 'think-ai-answer',
+                    renotify: true
+                });
+            });
+        } else {
+            new Notification('Think AI', {
+                body: `Your answer is ready: "${snippet}"`,
+                icon: 'logo.png',
+                tag: 'think-ai-answer'
+            });
+        }
+    };
+
     // Pool of Gemini API keys for seamless automatic rotation on rate limits / errors
     const API_KEYS = [
         'AIzaSyCxJtD_DeXGRw3guOQg0MjxRIFIFA8itis', // Primary key
@@ -685,6 +723,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (state.isAIProcessing) return;
         const text = chatInput.value.trim();
         if (text) {
+            requestNotificationPermission(); // Silent request on explicit user click/send
             if (!state.activeChatId) startNewChat();
             const currentChat = state.chats.find(c => c.id === state.activeChatId);
             appendMessageToUI(text, true);
@@ -711,6 +750,11 @@ document.addEventListener('DOMContentLoaded', () => {
                     const aiText = result.data.candidates[0].content.parts[0].text;
                     appendMessageToUI(aiText, false, true, false); // Instant display
                     updateSendButtonState();
+
+                    // Send a push notification if the user has minimized/backgrounded the app while waiting!
+                    if (document.visibilityState === 'hidden') {
+                        sendPushNotification(aiText);
+                    }
                 } else {
                     updateSendButtonState();
                     appendMessageToUI("Sorry, I received an invalid response from the AI.", false);
