@@ -686,14 +686,18 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 const data = await response.json();
 
-                // Check STRICTLY for rate limit (429) or resource exhaustion (quota exceeded)
+                // Check STRICTLY for rate limit (429), resource exhaustion (quota exceeded), or temporary high demand spikes
                 const isLimitExceeded = data.error && (
                     response.status === 429 || 
                     data.error.code === 429 || 
                     data.error.status === 'RESOURCE_EXHAUSTED' || 
                     data.error.message.toLowerCase().includes('quota') || 
                     data.error.message.toLowerCase().includes('rate limit') || 
-                    data.error.message.toLowerCase().includes('limit exceeded')
+                    data.error.message.toLowerCase().includes('limit exceeded') ||
+                    data.error.message.toLowerCase().includes('high demand') ||
+                    data.error.message.toLowerCase().includes('temporary') ||
+                    data.error.message.toLowerCase().includes('try again later') ||
+                    data.error.message.toLowerCase().includes('overloaded')
                 );
 
                 if (isLimitExceeded) {
