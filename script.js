@@ -686,16 +686,25 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 const data = await response.json();
 
-                // Check for rate limit (429), quota limits, or invalid key issues
-                if (data.error && (response.status === 429 || data.error.code === 429 || data.error.status === 'RESOURCE_EXHAUSTED' || data.error.message.includes('quota') || data.error.message.includes('limit') || data.error.message.includes('API key') || data.error.message.includes('not valid'))) {
-                    console.warn(`API key index ${currentKeyIndex} limit reached or invalid. Silently rotating key...`);
+                // Check STRICTLY for rate limit (429) or resource exhaustion (quota exceeded)
+                const isLimitExceeded = data.error && (
+                    response.status === 429 || 
+                    data.error.code === 429 || 
+                    data.error.status === 'RESOURCE_EXHAUSTED' || 
+                    data.error.message.toLowerCase().includes('quota') || 
+                    data.error.message.toLowerCase().includes('rate limit') || 
+                    data.error.message.toLowerCase().includes('limit exceeded')
+                );
+
+                if (isLimitExceeded) {
+                    console.warn(`API key index ${currentKeyIndex} quota limit reached. Silently rotating key...`);
                     currentKeyIndex = (currentKeyIndex + 1) % API_KEYS.length;
                     localStorage.setItem('think_ai_key_index', currentKeyIndex.toString());
                     attempts++;
                     continue; // Retry with next key in pool
                 }
 
-                // If it is another kind of API error (like safety block, formatting, etc.), just return it
+                // If it is another kind of error, just return it directly (do not rotate)
                 if (data.error) {
                     return { error: data.error };
                 }
@@ -705,9 +714,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             } catch (error) {
                 console.error(`Network or fetch error with key index ${currentKeyIndex}:`, error);
-                currentKeyIndex = (currentKeyIndex + 1) % API_KEYS.length;
-                localStorage.setItem('think_ai_key_index', currentKeyIndex.toString());
-                attempts++;
+                return { error: { message: error.message } };
             }
         }
 
