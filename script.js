@@ -525,6 +525,57 @@ document.addEventListener('DOMContentLoaded', () => {
         const wrapper = document.createElement('div');
         wrapper.className = `flex flex-col gap-2 max-w-[85%] ${isUser ? 'items-end' : ''}`;
         wrapper.appendChild(bubble);
+
+        // --- Copy Button ---
+        const copyBtn = document.createElement('button');
+        copyBtn.className = `copy-msg-btn flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-semibold transition-all duration-200 opacity-0 pointer-events-none ${isUser ? 'self-end text-white/70 hover:text-white hover:bg-white/20' : 'self-start text-gray-400 hover:text-[#ff5bf8] hover:bg-[#ff5bf8]/10'}`;
+        copyBtn.setAttribute('title', 'Copy message');
+        copyBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg><span>Copy</span>`;
+        copyBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            navigator.clipboard.writeText(text).then(() => {
+                copyBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg><span style="color: #4ade80">Copied!</span>`;
+                setTimeout(() => {
+                    copyBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg><span>Copy</span>`;
+                }, 2000);
+            }).catch(() => {
+                // Fallback for older browsers
+                const el = document.createElement('textarea');
+                el.value = text;
+                document.body.appendChild(el);
+                el.select();
+                document.execCommand('copy');
+                document.body.removeChild(el);
+                copyBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg><span style="color: #4ade80">Copied!</span>`;
+                setTimeout(() => {
+                    copyBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg><span>Copy</span>`;
+                }, 2000);
+            });
+        });
+        wrapper.appendChild(copyBtn);
+
+        // Show/hide copy button on hover
+        msgDiv.addEventListener('mouseenter', () => {
+            copyBtn.classList.remove('opacity-0', 'pointer-events-none');
+            copyBtn.classList.add('opacity-100', 'pointer-events-auto');
+        });
+        msgDiv.addEventListener('mouseleave', () => {
+            copyBtn.classList.add('opacity-0', 'pointer-events-none');
+            copyBtn.classList.remove('opacity-100', 'pointer-events-auto');
+        });
+        // Touch support for mobile: toggle on tap of the bubble
+        bubble.addEventListener('click', () => {
+            const isHidden = copyBtn.classList.contains('opacity-0');
+            document.querySelectorAll('.copy-msg-btn').forEach(b => {
+                b.classList.add('opacity-0', 'pointer-events-none');
+                b.classList.remove('opacity-100', 'pointer-events-auto');
+            });
+            if (isHidden) {
+                copyBtn.classList.remove('opacity-0', 'pointer-events-none');
+                copyBtn.classList.add('opacity-100', 'pointer-events-auto');
+            }
+        });
+
         msgDiv.appendChild(wrapper);
         chatContainer.appendChild(msgDiv);
         chatContainer.scrollTo({ top: chatContainer.scrollHeight, behavior: 'smooth' });
