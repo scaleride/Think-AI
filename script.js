@@ -361,6 +361,9 @@ document.addEventListener('DOMContentLoaded', () => {
         state.activeModel = model;
         const selectorSpan = document.querySelector('#model-selector span');
         if (selectorSpan) selectorSpan.textContent = model;
+        const inputLabel = document.getElementById('input-model-label');
+        if (inputLabel) inputLabel.textContent = model;
+        document.getElementById('input-model-dropdown')?.classList.remove('show');
         document.querySelectorAll('.model-option .check-icon').forEach(icon => icon.remove());
         const checkIcon = document.createElement('i');
         checkIcon.setAttribute('data-lucide', 'check');
@@ -390,6 +393,11 @@ document.addEventListener('DOMContentLoaded', () => {
     document.querySelectorAll('.model-option').forEach(option => {
         option.addEventListener('click', (e) => { e.stopPropagation(); updateModelSelection(option); });
     });
+
+    // Model picker next to the + button (opens upward)
+    const inputModelBtn = document.getElementById('input-model-btn');
+    const inputModelDropdown = document.getElementById('input-model-dropdown');
+    inputModelBtn?.addEventListener('click', (e) => { e.stopPropagation(); inputModelDropdown.classList.toggle('show'); });
 
     // Web Search Globe Toggle Button Logic
     const searchToggleBtn = document.getElementById('web-search-toggle');
