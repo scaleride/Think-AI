@@ -359,12 +359,14 @@ document.addEventListener('DOMContentLoaded', () => {
     const updateModelSelection = (selectedOption) => {
         const model = selectedOption.dataset.model;
         state.activeModel = model;
-        const selectorSpan = document.querySelector('#model-selector span');
-        if (selectorSpan) selectorSpan.textContent = model;
-        const inputLabel = document.getElementById('input-model-label');
-        if (inputLabel) inputLabel.textContent = model;
-        document.getElementById('input-model-dropdown')?.classList.remove('show');
-        document.querySelectorAll('.model-option .check-icon').forEach(icon => icon.remove());
+        // Each box shows only what was picked in that box
+        const fromInputBox = !!selectedOption.closest('#input-model-dropdown');
+        const label = fromInputBox
+            ? document.getElementById('input-model-label')
+            : document.querySelector('#model-selector span');
+        if (label) label.textContent = model;
+        const ownMenu = selectedOption.closest('.dropdown-content');
+        ownMenu?.querySelectorAll('.check-icon').forEach(icon => icon.remove());
         const checkIcon = document.createElement('i');
         checkIcon.setAttribute('data-lucide', 'check');
         checkIcon.className = 'check-icon w-4 h-4 text-[#ff5bf8]';
@@ -388,6 +390,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         lucide.createIcons();
         modelDropdown.classList.remove('show');
+        if (fromInputBox) document.getElementById('input-model-dropdown')?.classList.remove('show');
     };
 
     document.querySelectorAll('.model-option').forEach(option => {
