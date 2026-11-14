@@ -541,9 +541,9 @@ html {
 
 /* Copy/Edit message actions style */
 .message-actions {
-    opacity: 0;
+    opacity: 0.55;
     transition: opacity 0.2s ease-in-out;
-    margin-top: 4px;
+    margin-top: 2px;
 }
 
 .msg-row:hover .message-actions {
@@ -618,3 +618,8 @@ html {
 .neon-mode .liquid-glass::before { display: none; }
 .dark-mode #chat-input::placeholder,
 .neon-mode #chat-input::placeholder { color: rgba(255, 255, 255, 0.5); }
+
+/* Light-touch polish */
+.action-btn { width: 30px; height: 30px; }
+.action-btn svg, .action-btn i { width: 15px; height: 15px; }
+.ai-bubble, .user-bubble { line-height: 1.6; }

@@ -26,15 +26,23 @@ document.addEventListener('DOMContentLoaded', () => {
 
     let selectedAvatarData = localStorage.getItem('user_photo') || null;
 
+    // Top sidebar circle: the user's photo if set, otherwise the logo for the current theme
+    const refreshSidebarLogo = () => {
+        const img = document.getElementById('sidebar-logo-img');
+        if (!img) return;
+        const photo = localStorage.getItem('user_photo');
+        const body = document.body.classList;
+        const themed = body.contains('neon-mode') ? 'logo_neon.png' : body.contains('dark-mode') ? 'logo_dark.jpg' : 'logo.png';
+        img.src = photo || themed;
+    };
+
     const updateSidebarProfile = () => {
         const name = localStorage.getItem('user_name') || 'User';
         const photo = localStorage.getItem('user_photo');
         
         if (userDisplayName) userDisplayName.textContent = name;
 
-        // Top sidebar circle: show the user's profile photo, otherwise the default logo
-        const sidebarLogoImg = document.getElementById('sidebar-logo-img');
-        if (sidebarLogoImg) sidebarLogoImg.src = photo || 'f_logo.jpg';
+        refreshSidebarLogo();
 
         if (photo && userAvatarImg) {
             userAvatarImg.src = photo;
@@ -216,6 +224,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (mainLogo) mainLogo.src = 'logo.png';
         }
         lucide.createIcons();
+        refreshSidebarLogo();
     };
 
     themeToggleBtn?.addEventListener('click', (e) => { e.stopPropagation(); toggleTheme(); });
@@ -807,7 +816,7 @@ document.addEventListener('DOMContentLoaded', () => {
         return { role: msg.isUser ? "user" : "model", parts };
     });
 
-    const resubmitMessage = async (chatId, msgIndex, newText) => {
+    const resubmitMessage = async (chatId, msgIndex, newText, isRegenerate = false) => {
         if (state.isAIProcessing) return;
         if (!navigator.onLine) { showToast("You're offline. Connect to the internet to resend."); renderChat(chatId); return; }
         
@@ -819,7 +828,7 @@ document.addEventListener('DOMContentLoaded', () => {
         chat.messages = chat.messages.slice(0, msgIndex + 1);
         
         // If it was the first message, update the chat title
-        if (msgIndex === 0) {
+        if (msgIndex === 0 && !isRegenerate) {
             if (!chat.titleEdited) {
                 chat.title = quickTitle(newText);
                 generateChatTitle(newText, chatId);
@@ -863,6 +872,18 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         
         lucide.createIcons();
+    };
+
+    // Regenerate: ask again for the reply to the user message that came before this reply
+    const regenerateResponse = (aiIndex) => {
+        if (state.isAIProcessing) return;
+        if (!navigator.onLine) { showToast("You're offline. Connect to the internet to regenerate."); return; }
+        const chat = state.chats.find(c => c.id === state.activeChatId);
+        if (!chat) return;
+        let u = aiIndex - 1;
+        while (u >= 0 && !chat.messages[u].isUser) u--;
+        if (u < 0) return;
+        resubmitMessage(chat.id, u, chat.messages[u].text, true);
     };
 
     const startEditingMessage = (bubbleElement, msgIndex) => {
@@ -1041,8 +1062,15 @@ document.addEventListener('DOMContentLoaded', () => {
             copyBtn.addEventListener('click', () => {
                 copyMessageToClipboard(text, copyBtn);
             });
-            
+
+            const regenBtn = document.createElement('button');
+            regenBtn.className = 'action-btn regen-msg-btn';
+            regenBtn.setAttribute('title', 'Regenerate response');
+            regenBtn.innerHTML = '<i data-lucide="refresh-cw" class="w-4 h-4"></i>';
+            regenBtn.addEventListener('click', () => regenerateResponse(index));
+
             actionsDiv.appendChild(copyBtn);
+            actionsDiv.appendChild(regenBtn);
             wrapper.appendChild(actionsDiv);
         }
         
