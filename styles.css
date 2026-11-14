@@ -639,3 +639,16 @@ html {
 .neon-mode .chat-history-item:hover {
     background-color: rgba(255, 255, 255, 0.08) !important;
 }
+
+/* Dark / Neon: light grey hover backgrounds made the (now white) text disappear.
+   Use a subtle dark hover instead, everywhere the light hover class is used. */
+.dark-mode .hover\:bg-gray-50:hover,
+.neon-mode .hover\:bg-gray-50:hover,
+.dark-mode #settings-btn:hover,
+.neon-mode #settings-btn:hover {
+    background-color: rgba(255, 255, 255, 0.08) !important;
+}
+.dark-mode .hover\:bg-gray-50:hover i,
+.neon-mode .hover\:bg-gray-50:hover i {
+    color: #ffffff !important;
+}
