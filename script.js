@@ -102,7 +102,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const savedChats = JSON.parse(localStorage.getItem('think_ai_chats') || '[]');
     const state = {
         isSidebarCollapsed: false,
-        activeModel: 'Think-Chat',
+        activeModel: 'Fluid 2.0',
         isWebSearchEnabled: false,
         isVoiceInputActive: false,
         activeChatId: null,
@@ -404,7 +404,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (option) updateModelSelection(option);
         } else {
             // Restore previous model
-            const prev = state.previousModel || 'Think-Chat';
+            const prev = state.previousModel || 'Fluid 2.0';
             const option = document.querySelector(`.model-option[data-model="${prev}"]`);
             if (option) updateModelSelection(option);
         }
