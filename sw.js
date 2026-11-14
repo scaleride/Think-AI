@@ -1,4 +1,4 @@
-const CACHE_NAME = 'comet-v2';
+const CACHE_NAME = 'comet-v3';
 const RUNTIME_CACHE = 'comet-runtime-v2';
 const ASSETS = [
   './',
@@ -11,7 +11,13 @@ const ASSETS = [
   './logo_dark.jpg',
   './logo_neon.png',
   './f_logo.jpg',
-  './ai_avatar.png'
+  './ai_avatar.png',
+  './comet_avatar.png',
+  './favicon-64.png',
+  './apple-touch-icon.png',
+  './icon-192.png',
+  './icon-512.png',
+  './icon-maskable-512.png'
 ];
 
 self.addEventListener('install', (e) => {

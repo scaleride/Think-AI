@@ -973,7 +973,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 avatar = `<div class="w-8 h-8 rounded-full avatar-gradient flex items-center justify-center shrink-0 text-[10px] font-bold text-white shadow-md">${initial}</div>`;
             }
         } else {
-            avatar = `<div class="w-8 h-8 rounded-full bg-white border border-gray-100 flex items-center justify-center shrink-0 shadow-sm overflow-hidden"><img src="ai_avatar.png" alt="Comet" class="w-full h-full object-cover"></div>`;
+            avatar = `<div class="w-8 h-8 rounded-full bg-white border border-gray-100 flex items-center justify-center shrink-0 shadow-sm overflow-hidden"><img src="comet_avatar.png" alt="Comet" class="w-full h-full object-cover"></div>`;
         }
         
         const bubble = document.createElement('div');
