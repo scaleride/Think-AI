@@ -32,7 +32,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!img) return;
         const photo = localStorage.getItem('user_photo');
         const body = document.body.classList;
-        const themed = body.contains('neon-mode') ? 'logo_neon.png' : body.contains('dark-mode') ? 'logo_dark.jpg' : 'logo.png';
+        const themed = body.contains('chrome-mode') ? 'logo_chrome.png' : body.contains('neon-mode') ? 'logo_neon.png' : body.contains('dark-mode') ? 'logo_dark.jpg' : 'logo.png';
         img.src = photo || themed;
     };
 
@@ -196,7 +196,7 @@ document.addEventListener('DOMContentLoaded', () => {
         light:  { icon: 'sun',  text: 'Light Mode',  track: '#e5e7eb', left: '2px',  logo: 'logo.png' },
         dark:   { icon: 'moon', text: 'Dark Mode',   track: '#1f2937', left: '10px', logo: 'logo_dark.jpg' },
         neon:   { icon: 'zap',  text: 'Neon Mode',   track: '#ff5bf8', left: '18px', logo: 'logo_neon.png' },
-        chrome: { icon: 'gem',  text: 'Chrome Mode', track: '#9aa4b2', left: '18px', logo: 'logo_dark.jpg' }
+        chrome: { icon: 'gem',  text: 'Chrome Mode', track: '#9aa4b2', left: '18px', logo: 'logo_chrome.png' }
     };
     const THEME_ORDER = ['light', 'dark', 'neon', 'chrome'];
 
