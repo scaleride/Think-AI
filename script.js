@@ -1568,15 +1568,10 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // Restore history on load
+    // On open: keep saved chats in the sidebar history, but start with a fresh chat
     const validChats = state.chats.filter(c => c.messages && c.messages.length > 0);
-    if (validChats.length > 0) {
-        validChats.forEach(chat => { chat.isAddedToHistory = true; });
-        refreshHistoryList();
-        const lastChat = validChats[validChats.length - 1];
-        state.activeChatId = lastChat.id;
-        renderChat(lastChat.id);
-    } else {
-        startNewChat();
-    }
+    state.chats = validChats;
+    validChats.forEach(chat => { chat.isAddedToHistory = true; });
+    if (validChats.length > 0) refreshHistoryList();
+    startNewChat();
 });
