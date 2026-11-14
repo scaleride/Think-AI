@@ -1,8 +1,8 @@
 {
-  "name": "Think AI",
-  "short_name": "Think AI",
-  "description": "Think AI is a premium AI research platform with a sleek, vibrant interface.",
-  "version": "01.2.25.19.2026",
+  "name": "Comet",
+  "short_name": "Comet",
+  "description": "Comet is a premium AI research platform with a sleek, vibrant interface.",
+  "version": "06.01.0",
   "start_url": "./index.html",
   "display": "standalone",
   "background_color": "#102e57",

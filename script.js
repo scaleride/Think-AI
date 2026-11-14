@@ -31,6 +31,11 @@ document.addEventListener('DOMContentLoaded', () => {
         const photo = localStorage.getItem('user_photo');
         
         if (userDisplayName) userDisplayName.textContent = name;
+
+        // Top sidebar circle: show the user's profile photo, otherwise the default logo
+        const sidebarLogoImg = document.getElementById('sidebar-logo-img');
+        if (sidebarLogoImg) sidebarLogoImg.src = photo || 'f_logo.jpg';
+
         if (photo && userAvatarImg) {
             userAvatarImg.src = photo;
             userAvatarImg.classList.remove('hidden');
@@ -104,7 +109,12 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     const saveChats = () => {
-        localStorage.setItem('think_ai_chats', JSON.stringify(state.chats));
+        try {
+            // Keys starting with "_" (raw attachment data) are kept in memory only
+            localStorage.setItem('think_ai_chats', JSON.stringify(state.chats, (k, v) => (k.startsWith('_') ? undefined : v)));
+        } catch (e) {
+            console.warn('Could not save chats (storage full?)', e);
+        }
     };
 
     // DOM Elements
@@ -211,55 +221,131 @@ document.addEventListener('DOMContentLoaded', () => {
     themeToggleBtn?.addEventListener('click', (e) => { e.stopPropagation(); toggleTheme(); });
 
     // Mood Modifier Logic
+    const MOOD_EMOJI = { Friendly: '😊', Angry: '😠', Emotional: '🥺', Romantic: '💝', Funny: '😂', Serious: '🧐', Sad: '😢', Happy: '🌟' };
+    const MOOD_GUIDE = {
+        Friendly: 'warm, approachable and encouraging, like a good friend. Casual, natural phrasing and contractions; genuinely interested in the person.',
+        Angry: 'irritated, impatient and blunt, with short punchy sentences and grumbling frustration at the situation. IMPORTANT: never insult, demean or abuse the user, no slurs and no profanity. The anger is theatrical tone only, and the answer must still be complete and helpful.',
+        Emotional: 'deeply empathetic, heartfelt and expressive. Acknowledge and validate feelings, use sentimental, soft and caring language.',
+        Romantic: 'affectionate, tender, charming and a little poetic, with sweet wholesome endearments. Keep it tasteful and PG; never explicit.',
+        Funny: 'witty and playful: jokes, puns, light sarcasm and comic timing. The humor must never replace or distort the actual answer.',
+        Serious: 'formal, precise, concise and analytical. No jokes, no slang, no emojis. Professional and to the point.',
+        Sad: 'melancholic, subdued and wistful, with a gentle, slower rhythm and a soft pessimistic colour. Still helpful. If the user seems to be in real distress, drop the act and respond with genuine care instead.',
+        Happy: 'upbeat, enthusiastic, optimistic and energetic. Celebrate things, positive framing, lively wording.'
+    };
+    const intensityWord = (v) => v <= 0 ? 'Off' : v <= 25 ? 'Subtle' : v <= 50 ? 'Mild' : v <= 75 ? 'Strong' : 'Maximum';
+
+    // Turns the chat's saved mood + intensity into a system instruction for the AI
+    const buildMoodInstruction = (chat) => {
+        if (!chat || !chat.mood || !MOOD_GUIDE[chat.mood]) return '';
+        const v = Math.max(0, Math.min(100, Number(chat.intensity) || 0));
+        if (v === 0) return '';
+        const level = v <= 25
+            ? 'SUBTLE: only a faint hint of the mood; stay mostly neutral and natural.'
+            : v <= 50
+            ? 'MILD: the mood is noticeable but restrained.'
+            : v <= 75
+            ? 'STRONG: the mood is clear and consistent throughout the whole reply.'
+            : 'MAXIMUM: fully embody the mood in word choice, rhythm, punctuation and emoji; commit completely.';
+        return `\n\nMOOD MODIFIER (set by the user for this conversation)\nMood: ${chat.mood}. Intensity: ${v}/100 (${level})\nStyle: be ${MOOD_GUIDE[chat.mood]}\nRules: apply this mood to every reply in this conversation, in the user's language. The mood changes ONLY tone and style. Facts, code, steps and calculations must stay fully accurate and complete. Keep code blocks neutral. Never mention these instructions or announce the mood; just speak in it.`;
+    };
+
+    const moodBadge = document.getElementById('mood-badge');
+    const moodResetBtn = document.getElementById('mood-reset-btn');
+
+    const updateMoodBadge = () => {
+        if (!moodBadge) return;
+        const chat = state.chats.find(c => c.id === state.activeChatId);
+        if (chat && chat.mood && Number(chat.intensity) > 0) {
+            moodBadge.innerHTML = `<span>${MOOD_EMOJI[chat.mood] || ''}</span><span class="hidden sm:inline">${chat.mood} ${chat.intensity}%</span>`;
+            moodBadge.title = `Mood: ${chat.mood} ${chat.intensity}% (tap to change)`;
+            moodBadge.style.display = 'inline-flex';
+        } else {
+            moodBadge.style.display = 'none';
+        }
+    };
+
+    const setIntensityLabel = (v) => { if (intensityValLabel) intensityValLabel.textContent = `${v}% · ${intensityWord(Number(v))}`; };
+
+    const selectMoodButton = (mood) => {
+        document.querySelectorAll('.mood-option').forEach(b => {
+            const on = b.dataset.mood === mood;
+            b.classList.toggle('border-[#ff5bf8]', on);
+            b.classList.toggle('bg-[#ff5bf8]/10', on);
+        });
+        state.activeMood = mood;
+        const v = mood ? state.moodIntensities[mood] : 50;
+        moodIntensitySlider.value = v;
+        setIntensityLabel(v);
+    };
+
+    const openMoodModal = () => {
+        const chat = state.chats.find(c => c.id === state.activeChatId);
+        if (chat && chat.mood) {
+            state.moodIntensities[chat.mood] = Number(chat.intensity);
+            selectMoodButton(chat.mood);
+        } else {
+            selectMoodButton(null);
+        }
+        moodModifierScreen.classList.remove('hidden');
+    };
+
     const bindMoodModifier = () => {
         const trigger = document.getElementById('mood-suggestion');
         if (trigger) {
-            trigger.onclick = (e) => {
-                e.stopPropagation();
-                moodModifierScreen.classList.remove('hidden');
-            };
+            trigger.onclick = (e) => { e.stopPropagation(); openMoodModal(); };
         }
     };
+    moodBadge?.addEventListener('click', (e) => { e.stopPropagation(); openMoodModal(); });
 
     moodBackBtn?.addEventListener('click', () => {
         moodModifierScreen.classList.add('hidden');
     });
 
     moodIntensitySlider?.addEventListener('input', (e) => {
-        const val = e.target.value;
-        if (state.activeMood) {
-            state.moodIntensities[state.activeMood] = val;
-            intensityValLabel.textContent = `${val}%`;
-        }
+        const val = Number(e.target.value);
+        if (state.activeMood) state.moodIntensities[state.activeMood] = val;
+        setIntensityLabel(val);
     });
 
     document.querySelectorAll('.mood-option').forEach(btn => {
-        btn.addEventListener('click', () => {
-            document.querySelectorAll('.mood-option').forEach(b => b.classList.remove('border-[#ff5bf8]', 'bg-[#ff5bf8]/10'));
-            btn.classList.add('border-[#ff5bf8]', 'bg-[#ff5bf8]/10');
-            const selectedMood = btn.dataset.mood;
-            state.activeMood = selectedMood;
-            const savedIntensity = state.moodIntensities[selectedMood];
-            moodIntensitySlider.value = savedIntensity;
-            intensityValLabel.textContent = `${savedIntensity}%`;
-        });
+        btn.addEventListener('click', () => selectMoodButton(btn.dataset.mood));
     });
+
+    const syncMoodCard = () => {
+        const chat = state.chats.find(c => c.id === state.activeChatId);
+        const trigger = document.getElementById('mood-suggestion');
+        if (!trigger) return;
+        const p = trigger.querySelector('p');
+        if (chat && chat.hasModifiedMood && chat.mood) {
+            if (p) p.textContent = `Active Mood: ${chat.mood} (${chat.intensity}%). Tap to change.`;
+        } else if (p) {
+            p.textContent = 'Customize how I respond to you.';
+        }
+        trigger.classList.remove('opacity-50', 'pointer-events-none');
+    };
 
     moodConfirmBtn?.addEventListener('click', () => {
         if (!state.activeMood) { alert("Please select a mood first!"); return; }
         const chat = state.chats.find(c => c.id === state.activeChatId);
         if (chat) {
             chat.mood = state.activeMood;
-            chat.intensity = state.moodIntensities[state.activeMood];
+            chat.intensity = Number(state.moodIntensities[state.activeMood]);
             chat.hasModifiedMood = true;
         }
         saveChats();
         moodModifierScreen.classList.add('hidden');
-        const trigger = document.getElementById('mood-suggestion');
-        if (trigger) {
-            trigger.classList.add('opacity-50', 'pointer-events-none');
-            trigger.querySelector('p').textContent = `Active Mood: ${state.activeMood} (${state.moodIntensities[state.activeMood]}%)`;
-        }
+        syncMoodCard();
+        updateMoodBadge();
+    });
+
+    moodResetBtn?.addEventListener('click', () => {
+        const chat = state.chats.find(c => c.id === state.activeChatId);
+        if (chat) { chat.mood = null; chat.intensity = 50; chat.hasModifiedMood = false; }
+        saveChats();
+        selectMoodButton(null);
+        moodModifierScreen.classList.add('hidden');
+        syncMoodCard();
+        updateMoodBadge();
     });
 
     // Model Logic
@@ -317,6 +403,140 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
+    // ---------- Attachments (+ menu): photos, videos, camera, files ----------
+    const pendingAttachments = [];
+    const MAX_FILE_BYTES = 12 * 1024 * 1024;
+    const MAX_TOTAL_BYTES = 15 * 1024 * 1024;
+    const TEXT_EXT = /\.(txt|md|csv|tsv|json|xml|html?|css|js|jsx|ts|tsx|py|java|c|cpp|h|cs|go|rs|php|rb|sh|sql|yml|yaml|log|ini|toml|swift|kt)$/i;
+    const attachmentTray = document.getElementById('attachment-tray');
+
+    const showToast = (msg) => {
+        const t = document.createElement('div');
+        t.textContent = msg;
+        t.className = 'fixed left-1/2 bottom-28 -translate-x-1/2 z-[200] px-4 py-2 rounded-xl bg-black/85 text-white text-xs shadow-xl max-w-[90vw] text-center';
+        document.body.appendChild(t);
+        setTimeout(() => t.remove(), 3500);
+    };
+
+    const readAsDataURL = (f) => new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result); r.onerror = rej; r.readAsDataURL(f); });
+    const readAsText = (f) => new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result); r.onerror = rej; r.readAsText(f); });
+    const makeThumb = (dataUrl, max = 480) => new Promise((res) => {
+        const img = new Image();
+        img.onload = () => {
+            const sc = Math.min(1, max / Math.max(img.width, img.height));
+            const c = document.createElement('canvas');
+            c.width = Math.max(1, Math.round(img.width * sc));
+            c.height = Math.max(1, Math.round(img.height * sc));
+            c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+            res(c.toDataURL('image/jpeg', 0.8));
+        };
+        img.onerror = () => res(null);
+        img.src = dataUrl;
+    });
+
+    const renderAttachmentTray = () => {
+        if (!attachmentTray) return;
+        attachmentTray.innerHTML = '';
+        attachmentTray.classList.toggle('hidden', pendingAttachments.length === 0);
+        attachmentTray.classList.toggle('flex', pendingAttachments.length > 0);
+        const iconFor = { image: 'image', video: 'video', audio: 'music', file: 'file-text' };
+        pendingAttachments.forEach((a, i) => {
+            const item = document.createElement('div');
+            item.className = 'tray-item';
+            if (a.meta.kind === 'image' && a.meta.thumb) {
+                const img = document.createElement('img');
+                img.src = a.meta.thumb;
+                img.alt = a.meta.name;
+                img.className = 'tray-thumb';
+                item.appendChild(img);
+            } else {
+                const ic = document.createElement('i');
+                ic.setAttribute('data-lucide', iconFor[a.meta.kind] || 'file');
+                ic.className = 'w-4 h-4 text-[#ff5bf8] shrink-0';
+                const nm = document.createElement('span');
+                nm.className = 'truncate max-w-[140px]';
+                nm.textContent = a.meta.name;
+                item.append(ic, nm);
+            }
+            const rm = document.createElement('button');
+            rm.className = 'tray-remove';
+            rm.title = 'Remove';
+            rm.innerHTML = '&times;';
+            rm.addEventListener('click', (e) => { e.stopPropagation(); pendingAttachments.splice(i, 1); renderAttachmentTray(); });
+            item.appendChild(rm);
+            attachmentTray.appendChild(item);
+        });
+        lucide.createIcons();
+    };
+
+    const addFiles = async (fileList) => {
+        for (const file of fileList) {
+            const total = pendingAttachments.reduce((sum, a) => sum + a.size, 0);
+            if (file.size > MAX_FILE_BYTES) { showToast(`"${file.name}" is too large (max 12 MB per file).`); continue; }
+            if (total + file.size > MAX_TOTAL_BYTES) { showToast('Attachments are too large together (max 15 MB per message).'); continue; }
+            const type = file.type || '';
+            const isText = type.startsWith('text/') || type === 'application/json' || TEXT_EXT.test(file.name);
+            let kind, part, thumb = null;
+            try {
+                if (isText) {
+                    kind = 'file';
+                    let t = await readAsText(file);
+                    if (t.length > 200000) t = t.slice(0, 200000) + '\n...[truncated]';
+                    part = { text: `[Attached file: ${file.name}]\n${t}` };
+                } else if (/^(image|video|audio)\//.test(type) || type === 'application/pdf') {
+                    const dataUrl = await readAsDataURL(file);
+                    kind = type.startsWith('image/') ? 'image' : type.startsWith('video/') ? 'video' : type.startsWith('audio/') ? 'audio' : 'file';
+                    if (kind === 'image') thumb = await makeThumb(dataUrl);
+                    part = { inlineData: { mimeType: type, data: dataUrl.split(',')[1] } };
+                } else {
+                    showToast(`"${file.name}" can't be read by the AI. Try a photo, video, audio, PDF or text file.`);
+                    continue;
+                }
+            } catch (err) {
+                console.error('Failed to read file', err);
+                showToast(`Could not read "${file.name}".`);
+                continue;
+            }
+            pendingAttachments.push({ size: file.size, part, meta: { name: file.name, type, size: file.size, kind, thumb } });
+        }
+        renderAttachmentTray();
+    };
+
+    const makeFileInput = (accept, capture) => {
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.className = 'hidden';
+        if (accept) input.accept = accept;
+        if (capture) input.setAttribute('capture', 'environment'); else input.multiple = true;
+        input.addEventListener('change', () => { addFiles(Array.from(input.files)); input.value = ''; });
+        document.body.appendChild(input);
+        return input;
+    };
+    const attachPhotoInput = makeFileInput('image/*');
+    const videoInput = makeFileInput('video/*');
+    const cameraInput = makeFileInput('image/*', true);
+    const anyFileInput = makeFileInput('');
+    document.getElementById('upload-photo-btn')?.addEventListener('click', () => attachPhotoInput.click());
+    document.getElementById('upload-video-btn')?.addEventListener('click', () => videoInput.click());
+    document.getElementById('upload-camera-btn')?.addEventListener('click', () => cameraInput.click());
+    document.getElementById('upload-file-btn')?.addEventListener('click', () => anyFileInput.click());
+
+    // Paste images/files straight into the box
+    chatInput?.addEventListener('paste', (e) => {
+        const files = Array.from(e.clipboardData?.files || []);
+        if (files.length) { e.preventDefault(); addFiles(files); }
+    });
+
+    // ---------- Offline handling ----------
+    const offlineBanner = document.getElementById('offline-banner');
+    const updateOnlineStatus = () => {
+        if (offlineBanner) offlineBanner.style.display = navigator.onLine ? 'none' : 'flex';
+        if (!navigator.onLine) lucide.createIcons();
+    };
+    window.addEventListener('online', () => { updateOnlineStatus(); showToast('Back online.'); });
+    window.addEventListener('offline', updateOnlineStatus);
+    updateOnlineStatus();
+
     // Chat Rendering
     const renderChat = (chatId) => {
         const chat = state.chats.find(c => c.id === chatId);
@@ -333,21 +553,11 @@ document.addEventListener('DOMContentLoaded', () => {
             chatContainer.appendChild(initialState);
             initialState.style.display = 'flex';
             bindMoodModifier();
-            const trigger = document.getElementById('mood-suggestion');
-            if (chat.hasModifiedMood) {
-                if (trigger) {
-                    trigger.classList.add('opacity-50', 'pointer-events-none');
-                    trigger.querySelector('p').textContent = `Active Mood: ${chat.mood} (${chat.intensity}%)`;
-                }
-            } else {
-                if (trigger) {
-                    trigger.classList.remove('opacity-50', 'pointer-events-none');
-                    trigger.querySelector('p').textContent = "Customize how I respond to you.";
-                }
-            }
+            syncMoodCard();
         } else {
             initialState.style.display = 'none';
-            chat.messages.forEach(msg => appendMessageToUI(msg.text, msg.isUser, false, false));
+            if (moodModifierScreen) moodModifierScreen.classList.add('hidden');
+            chat.messages.forEach((msg, idx) => appendMessageToUI(msg.text, msg.isUser, false, false, idx, msg.attachments));
         }
         document.querySelectorAll('.chat-history-item').forEach(item => {
             const isActive = parseInt(item.dataset.id) === chatId;
@@ -357,6 +567,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const icon = item.querySelector('i:first-child');
             if (icon) { icon.classList.toggle('text-[#ff5bf8]', isActive); icon.classList.toggle('text-gray-400', !isActive); }
         });
+        updateMoodBadge();
         chatContainer.scrollTo({ top: chatContainer.scrollHeight });
         closeMobileSidebar();
     };
@@ -385,6 +596,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const newTitle = prompt("Enter new title:", chat.title);
         if (newTitle?.trim()) {
             chat.title = newTitle.trim();
+            chat.titleEdited = true;
             saveChats();
             const span = document.querySelector(`.chat-history-item[data-id="${chatId}"] span`);
             if (span) span.textContent = chat.title;
@@ -455,7 +667,7 @@ document.addEventListener('DOMContentLoaded', () => {
         
         historyItem.innerHTML = `
             <i data-lucide="${chat.isPinned ? 'pin' : 'message-square'}" class="w-4 h-4 ${chat.isPinned ? 'text-[#ff5bf8]' : 'text-gray-400'}"></i>
-            <span class="flex-1 text-sm truncate text-gray-500">${chat.title}</span>
+            <span class="flex-1 text-sm truncate text-gray-500">${escapeHTML(chat.title)}</span>
             <div class="relative flex items-center opacity-0 group-hover:opacity-100 transition-opacity">
                 <button class="menu-trigger p-1 hover:bg-gray-200 rounded-md"><i data-lucide="more-horizontal" class="w-4 h-4 text-gray-400"></i></button>
                 <div class="history-menu dropdown-content absolute right-0 top-full mt-1 bg-white border border-gray-100 rounded-xl shadow-2xl z-[100] w-32 p-1">
@@ -500,10 +712,255 @@ document.addEventListener('DOMContentLoaded', () => {
 
     newChatBtn?.addEventListener('click', startNewChat);
 
-    const appendMessageToUI = (text, isUser = true, saveToState = true, shouldStream = true) => {
-        const msgDiv = document.createElement('div');
-        msgDiv.className = `flex ${isUser ? 'flex-row-reverse' : ''} gap-4 message-enter`;
+    // Instant placeholder title (first words of the first message) until the AI title arrives
+    const quickTitle = (t) => {
+        let c = (t || '').replace(/\s+/g, ' ').trim();
+        if (c.length <= 32) return c || 'New Chat';
+        c = c.slice(0, 32);
+        const i = c.lastIndexOf(' ');
+        return (i > 15 ? c.slice(0, i) : c) + '…';
+    };
+
+    const escapeHTML = (str) => String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+
+    const applyChatTitle = (chatId, title) => {
+        const chat = state.chats.find(c => c.id === chatId);
+        if (!chat) return;
+        chat.title = title;
+        saveChats();
+        if (state.activeChatId === chatId) {
+            const headerTitle = document.getElementById('active-chat-title');
+            if (headerTitle) headerTitle.textContent = title;
+        }
+        const itemSpan = document.querySelector(`.chat-history-item[data-id="${chatId}"] > span`);
+        if (itemSpan) itemSpan.textContent = title;
+    };
+
+    // Names the chat after its first message (like ChatGPT / Claude)
+    const generateChatTitle = async (firstMessageText, chatId, attempt = 1) => {
+        const titlePrompt = [
+            {
+                role: "user",
+                parts: [{ text: `Write a very short chat title (2-5 words) that describes the topic of the user's first message. Use the same language as the message. Reply with ONLY the title: no quotes, no trailing punctuation, no formatting, no introduction.\n\nFirst message:\n${String(firstMessageText).slice(0, 1000)}` }]
+            }
+        ];
+
+        try {
+            const result = await callGeminiAPI(titlePrompt);
+            const raw = result.success && result.data.candidates?.[0]?.content?.parts?.map(p => p.text || '').join('');
+            let title = (raw || '').split('\n')[0].replace(/^["'“”‘’`*#\s]+|["'“”‘’`*.\s]+$/g, '').trim();
+            if (title) {
+                if (title.length > 40) title = title.slice(0, 40).trim() + '…';
+                const chat = state.chats.find(c => c.id === chatId);
+                // Don't overwrite a name the user typed themselves
+                if (chat && !chat.titleEdited) applyChatTitle(chatId, title);
+            } else if (attempt < 2) {
+                setTimeout(() => generateChatTitle(firstMessageText, chatId, attempt + 1), 3000);
+            }
+        } catch (error) {
+            console.error("Error generating chat title:", error);
+            if (attempt < 2) setTimeout(() => generateChatTitle(firstMessageText, chatId, attempt + 1), 3000);
+        }
+    };
+
+    const copyMessageToClipboard = (plainText, btnElement) => {
+        navigator.clipboard.writeText(plainText).then(() => {
+            const icon = btnElement.querySelector('i');
+            if (icon) {
+                icon.setAttribute('data-lucide', 'check');
+                icon.classList.add('text-[#ff5bf8]');
+                lucide.createIcons();
+                
+                // Show tooltip
+                const tooltip = document.createElement('span');
+                tooltip.textContent = 'Copied!';
+                tooltip.className = 'absolute bottom-full mb-1 text-[10px] bg-black text-white px-2 py-0.5 rounded shadow opacity-90 transition-opacity duration-200 pointer-events-none z-50';
+                tooltip.style.left = '50%';
+                tooltip.style.transform = 'translateX(-50%)';
+                btnElement.style.position = 'relative';
+                btnElement.appendChild(tooltip);
+                
+                setTimeout(() => {
+                    tooltip.classList.add('opacity-0');
+                    setTimeout(() => {
+                        tooltip.remove();
+                        icon.setAttribute('data-lucide', 'copy');
+                        icon.classList.remove('text-[#ff5bf8]');
+                        lucide.createIcons();
+                    }, 200);
+                }, 1500);
+            }
+        }).catch(err => {
+            console.error("Clipboard copy failed:", err);
+        });
+    };
+
+    // Build the Gemini "contents" array, including any attached files
+    const buildHistory = (messages) => messages.map(msg => {
+        const parts = [];
+        if (msg.isUser && msg._files && msg._files.length) {
+            parts.push(...msg._files);
+        } else if (msg.isUser && msg.attachments && msg.attachments.length) {
+            parts.push({ text: `[User attached earlier: ${msg.attachments.map(a => a.name).join(', ')}]` });
+        }
+        parts.push({ text: msg.text || (msg.attachments && msg.attachments.length ? 'Please look at the attached file(s).' : ' ') });
+        return { role: msg.isUser ? "user" : "model", parts };
+    });
+
+    const resubmitMessage = async (chatId, msgIndex, newText) => {
+        if (state.isAIProcessing) return;
+        if (!navigator.onLine) { showToast("You're offline. Connect to the internet to resend."); renderChat(chatId); return; }
         
+        const chat = state.chats.find(c => c.id === chatId);
+        if (!chat) return;
+        
+        // Update the message text and truncate subsequent messages
+        chat.messages[msgIndex].text = newText;
+        chat.messages = chat.messages.slice(0, msgIndex + 1);
+        
+        // If it was the first message, update the chat title
+        if (msgIndex === 0) {
+            if (!chat.titleEdited) {
+                chat.title = quickTitle(newText);
+                generateChatTitle(newText, chatId);
+            }
+        }
+        
+        saveChats();
+        
+        // Re-render the chat UI
+        renderChat(chatId);
+        
+        // Trigger AI processing
+        state.isAIProcessing = true;
+        updateSendButtonState();
+        
+        try {
+            const history = buildHistory(chat.messages);
+            
+            const result = await callGeminiAPI(history, buildMoodInstruction(chat));
+            state.isAIProcessing = false;
+            
+            if (result.error) {
+                updateSendButtonState();
+                appendMessageToUI(`⚠️ **API Error:** ${result.error.message}`, false);
+            } else if (result.success && result.data.candidates && result.data.candidates.length > 0) {
+                const aiText = result.data.candidates[0].content.parts[0].text;
+                appendMessageToUI(aiText, false, true, false);
+                updateSendButtonState();
+                
+                if (document.visibilityState === 'hidden') {
+                    sendPushNotification(aiText);
+                }
+            } else {
+                updateSendButtonState();
+                appendMessageToUI("Sorry, I received an invalid response from the AI.", false);
+            }
+        } catch (error) {
+            state.isAIProcessing = false;
+            updateSendButtonState();
+            appendMessageToUI(`⚠️ **Error:** ${error.message}`, false);
+        }
+        
+        lucide.createIcons();
+    };
+
+    const startEditingMessage = (bubbleElement, msgIndex) => {
+        const chat = state.chats.find(c => c.id === state.activeChatId);
+        if (!chat) return;
+        
+        const originalText = chat.messages[msgIndex].text;
+        const originalHTML = bubbleElement.innerHTML;
+        
+        // Create edit interface
+        bubbleElement.innerHTML = '';
+        bubbleElement.className = 'px-5 py-3 user-bubble text-sm leading-relaxed w-full';
+        
+        const editContainer = document.createElement('div');
+        editContainer.className = 'edit-container flex items-end gap-2 w-full';
+        
+        const textarea = document.createElement('textarea');
+        textarea.className = 'edit-input-field flex-1 bg-transparent border-none focus:outline-none focus:ring-0 text-white resize-none text-sm p-0';
+        textarea.value = originalText;
+        textarea.rows = 1;
+        
+        // Auto-resize logic for textarea
+        textarea.addEventListener('input', () => {
+            textarea.style.height = 'auto';
+            textarea.style.height = textarea.scrollHeight + 'px';
+        });
+        
+        const submitBtn = document.createElement('button');
+        submitBtn.className = 'edit-submit-btn w-8 h-8 rounded-full bg-white flex items-center justify-center shrink-0 shadow transition-all hover:scale-105';
+        submitBtn.setAttribute('title', 'Resubmit');
+        submitBtn.innerHTML = '<i data-lucide="arrow-up" class="w-4 h-4 text-[#ff5bf8]"></i>';
+        
+        editContainer.appendChild(textarea);
+        editContainer.appendChild(submitBtn);
+        bubbleElement.appendChild(editContainer);
+        
+        lucide.createIcons();
+        textarea.focus();
+        textarea.style.height = textarea.scrollHeight + 'px';
+        
+        let isSubmittedOrCancelled = false;
+        
+        const cancelEdit = () => {
+            if (isSubmittedOrCancelled) return;
+            isSubmittedOrCancelled = true;
+            bubbleElement.innerHTML = originalHTML;
+            bubbleElement.className = 'px-5 py-3 user-bubble text-white text-sm leading-relaxed';
+        };
+        
+        const submitEdit = () => {
+            if (isSubmittedOrCancelled) return;
+            const newText = textarea.value.trim();
+            if (!newText) {
+                cancelEdit();
+                return;
+            }
+            isSubmittedOrCancelled = true;
+            resubmitMessage(state.activeChatId, msgIndex, newText);
+        };
+        
+        submitBtn.addEventListener('mousedown', (e) => {
+            e.preventDefault();
+            submitEdit();
+        });
+        
+        textarea.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                submitEdit();
+            } else if (e.key === 'Escape') {
+                e.preventDefault();
+                cancelEdit();
+            }
+        });
+        
+        textarea.addEventListener('blur', () => {
+            setTimeout(() => {
+                if (!isSubmittedOrCancelled) {
+                    cancelEdit();
+                }
+            }, 200);
+        });
+    };
+
+    const appendMessageToUI = (text, isUser = true, saveToState = true, shouldStream = true, msgIndex = undefined, attachments = null, files = null) => {
+        // Hide initial state (logo and mood modifier suggestion) as soon as messages are added
+        if (initialState) initialState.style.display = 'none';
+
+        const msgDiv = document.createElement('div');
+        msgDiv.className = `flex ${isUser ? 'flex-row-reverse' : ''} gap-4 message-enter group msg-row`;
+        
+        const chat = state.chats.find(c => c.id === state.activeChatId);
+        let index = msgIndex;
+        if (index === undefined && chat) {
+            index = chat.messages.length;
+        }
+        msgDiv.dataset.index = index;
+
         const userName = localStorage.getItem('user_name') || 'User';
         const userPhoto = localStorage.getItem('user_photo');
         
@@ -516,66 +973,79 @@ document.addEventListener('DOMContentLoaded', () => {
                 avatar = `<div class="w-8 h-8 rounded-full avatar-gradient flex items-center justify-center shrink-0 text-[10px] font-bold text-white shadow-md">${initial}</div>`;
             }
         } else {
-            avatar = `<div class="w-8 h-8 rounded-full bg-white border border-gray-100 flex items-center justify-center shrink-0 shadow-sm overflow-hidden"><img src="ai_avatar.png" alt="Think AI" class="w-full h-full object-cover"></div>`;
+            avatar = `<div class="w-8 h-8 rounded-full bg-white border border-gray-100 flex items-center justify-center shrink-0 shadow-sm overflow-hidden"><img src="ai_avatar.png" alt="Comet" class="w-full h-full object-cover"></div>`;
         }
         
         const bubble = document.createElement('div');
         bubble.className = `px-5 py-3 ${isUser ? 'user-bubble text-white' : 'ai-bubble text-gray-700'} text-sm leading-relaxed`;
         msgDiv.innerHTML = avatar;
+        
         const wrapper = document.createElement('div');
         wrapper.className = `flex flex-col gap-2 max-w-[85%] ${isUser ? 'items-end' : ''}`;
         wrapper.appendChild(bubble);
-
-        // --- Copy Button ---
-        const copyBtn = document.createElement('button');
-        copyBtn.className = `copy-msg-btn flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-semibold transition-all duration-200 opacity-0 pointer-events-none ${isUser ? 'self-end text-white/70 hover:text-white hover:bg-white/20' : 'self-start text-gray-400 hover:text-[#ff5bf8] hover:bg-[#ff5bf8]/10'}`;
-        copyBtn.setAttribute('title', 'Copy message');
-        copyBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg><span>Copy</span>`;
-        copyBtn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            navigator.clipboard.writeText(text).then(() => {
-                copyBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg><span style="color: #4ade80">Copied!</span>`;
-                setTimeout(() => {
-                    copyBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg><span>Copy</span>`;
-                }, 2000);
-            }).catch(() => {
-                // Fallback for older browsers
-                const el = document.createElement('textarea');
-                el.value = text;
-                document.body.appendChild(el);
-                el.select();
-                document.execCommand('copy');
-                document.body.removeChild(el);
-                copyBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg><span style="color: #4ade80">Copied!</span>`;
-                setTimeout(() => {
-                    copyBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg><span>Copy</span>`;
-                }, 2000);
+        
+        // Add Copy and Edit actions
+        // Attachments (photos, videos, files) shown above the message text
+        if (attachments && attachments.length) {
+            const attWrap = document.createElement('div');
+            attWrap.className = `flex flex-wrap gap-2 ${isUser ? 'justify-end' : ''}`;
+            const iconFor = { image: 'image', video: 'video', audio: 'music', file: 'file-text' };
+            attachments.forEach(a => {
+                if (a.kind === 'image' && a.thumb) {
+                    const img = document.createElement('img');
+                    img.src = a.thumb;
+                    img.alt = a.name;
+                    img.className = 'msg-attach-img';
+                    attWrap.appendChild(img);
+                } else {
+                    const chip = document.createElement('div');
+                    chip.className = 'attach-chip';
+                    const ic = document.createElement('i');
+                    ic.setAttribute('data-lucide', iconFor[a.kind] || 'file');
+                    ic.className = 'w-4 h-4 text-[#ff5bf8] shrink-0';
+                    const nm = document.createElement('span');
+                    nm.className = 'truncate';
+                    nm.textContent = a.name;
+                    chip.append(ic, nm);
+                    attWrap.appendChild(chip);
+                }
             });
-        });
-        wrapper.appendChild(copyBtn);
+            wrapper.insertBefore(attWrap, bubble);
+        }
+        if (isUser && !text) bubble.classList.add('hidden');
 
-        // Show/hide copy button on hover
-        msgDiv.addEventListener('mouseenter', () => {
-            copyBtn.classList.remove('opacity-0', 'pointer-events-none');
-            copyBtn.classList.add('opacity-100', 'pointer-events-auto');
-        });
-        msgDiv.addEventListener('mouseleave', () => {
-            copyBtn.classList.add('opacity-0', 'pointer-events-none');
-            copyBtn.classList.remove('opacity-100', 'pointer-events-auto');
-        });
-        // Touch support for mobile: toggle on tap of the bubble
-        bubble.addEventListener('click', () => {
-            const isHidden = copyBtn.classList.contains('opacity-0');
-            document.querySelectorAll('.copy-msg-btn').forEach(b => {
-                b.classList.add('opacity-0', 'pointer-events-none');
-                b.classList.remove('opacity-100', 'pointer-events-auto');
+        if (isUser && text) {
+            const actionsDiv = document.createElement('div');
+            actionsDiv.className = 'message-actions flex justify-end w-full';
+            
+            const editBtn = document.createElement('button');
+            editBtn.className = 'action-btn edit-msg-btn';
+            editBtn.setAttribute('title', 'Edit message');
+            editBtn.innerHTML = '<i data-lucide="pencil" class="w-4 h-4"></i>';
+            
+            editBtn.addEventListener('click', () => {
+                startEditingMessage(bubble, index);
             });
-            if (isHidden) {
-                copyBtn.classList.remove('opacity-0', 'pointer-events-none');
-                copyBtn.classList.add('opacity-100', 'pointer-events-auto');
-            }
-        });
-
+            
+            actionsDiv.appendChild(editBtn);
+            wrapper.appendChild(actionsDiv);
+        } else if (!isUser) {
+            const actionsDiv = document.createElement('div');
+            actionsDiv.className = 'message-actions flex justify-start w-full';
+            
+            const copyBtn = document.createElement('button');
+            copyBtn.className = 'action-btn copy-msg-btn';
+            copyBtn.setAttribute('title', 'Copy message');
+            copyBtn.innerHTML = '<i data-lucide="copy" class="w-4 h-4"></i>';
+            
+            copyBtn.addEventListener('click', () => {
+                copyMessageToClipboard(text, copyBtn);
+            });
+            
+            actionsDiv.appendChild(copyBtn);
+            wrapper.appendChild(actionsDiv);
+        }
+        
         msgDiv.appendChild(wrapper);
         chatContainer.appendChild(msgDiv);
         chatContainer.scrollTo({ top: chatContainer.scrollHeight, behavior: 'smooth' });
@@ -620,6 +1090,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     bubble.innerHTML = formatContent(text);
                     state.isAIProcessing = false;
                     updateSendButtonState();
+                    lucide.createIcons();
                 }
             }, 10);
         } else {
@@ -629,15 +1100,24 @@ document.addEventListener('DOMContentLoaded', () => {
         if (saveToState && state.activeChatId) {
             const chat = state.chats.find(c => c.id === state.activeChatId);
             if (chat) {
-                chat.messages.push({ text, isUser });
+                const msgObj = { text, isUser };
+                if (attachments && attachments.length) { msgObj.attachments = attachments; msgObj._files = files; }
+                chat.messages.push(msgObj);
                 if (isUser && chat.messages.length === 1) {
-                    chat.title = text.substring(0, 30) + (text.length > 30 ? '...' : '');
+                    const titleText = text || (attachments && attachments[0] ? attachments[0].name : 'Attachment');
+                    chat.title = quickTitle(titleText);
+                    // Update the active chat title in the header
+                    const headerTitle = document.getElementById('active-chat-title');
+                    if (headerTitle) headerTitle.textContent = chat.title;
                     if (!chat.isAddedToHistory) { addToHistoryUI(chat); chat.isAddedToHistory = true; }
-                    renderChat(state.activeChatId);
+                    // Generate AI title in background
+                    generateChatTitle(titleText, state.activeChatId);
                 }
                 saveChats();
             }
         }
+        
+        lucide.createIcons();
     };
 
     const updateSendButtonState = () => {
@@ -678,7 +1158,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if ('serviceWorker' in navigator) {
             navigator.serviceWorker.ready.then(registration => {
-                registration.showNotification('Think AI', {
+                registration.showNotification('Comet', {
                     body: `Your answer is ready: "${snippet}"`,
                     icon: 'logo.png',
                     badge: 'logo.png',
@@ -688,7 +1168,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 });
             });
         } else {
-            new Notification('Think AI', {
+            new Notification('Comet', {
                 body: `Your answer is ready: "${snippet}"`,
                 icon: 'logo.png',
                 tag: 'think-ai-answer'
@@ -709,7 +1189,7 @@ document.addEventListener('DOMContentLoaded', () => {
         localStorage.setItem('think_ai_key_index', '0');
     }
 
-    const callGeminiAPI = async (history) => {
+    const callGeminiAPI = async (history, moodText = '') => {
         let attempts = 0;
         const maxAttempts = API_KEYS.length;
 
@@ -724,7 +1204,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     body: JSON.stringify({ 
                         contents: history,
                         systemInstruction: {
-                            parts: [{ text: "You are Think AI, a helpful and natural-sounding AI assistant created by LYFT. Only mention that you were made by LYFT (stylized as LYF↑) when specifically asked about your origin or creator. Otherwise, respond naturally to greetings and questions." }]
+                            parts: [{ text: "You are Comet, a helpful and natural-sounding AI assistant created by the Think AI team. Only mention that you were made by Think AI when specifically asked about your origin or creator. Otherwise, respond naturally to greetings and questions." + moodText }]
                         },
                         safetySettings: [
                             { category: "HARM_CATEGORY_HARASSMENT", threshold: "BLOCK_NONE" },
@@ -783,12 +1263,18 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
         if (state.isAIProcessing) return;
+        if (!navigator.onLine) { showToast("You're offline. Connect to the internet to send messages."); return; }
         const text = chatInput.value.trim();
-        if (text) {
+        if (text || pendingAttachments.length) {
             requestNotificationPermission(); // Silent request on explicit user click/send
             if (!state.activeChatId) startNewChat();
             const currentChat = state.chats.find(c => c.id === state.activeChatId);
-            appendMessageToUI(text, true);
+            if (moodModifierScreen) moodModifierScreen.classList.add('hidden');
+            const sent = pendingAttachments.splice(0);
+            renderAttachmentTray();
+            appendMessageToUI(text, true, true, true, undefined,
+                sent.length ? sent.map(a => a.meta) : null,
+                sent.length ? sent.map(a => a.part) : null);
             chatInput.value = '';
             chatInput.style.height = 'auto';
 
@@ -797,12 +1283,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
             try {
                 // All models now use Gemini since other keys were removed
-                const history = currentChat.messages.map(msg => ({
-                    role: msg.isUser ? "user" : "model",
-                    parts: [{ text: msg.text }]
-                }));
+                const history = buildHistory(currentChat.messages);
                 
-                const result = await callGeminiAPI(history);
+                const result = await callGeminiAPI(history, buildMoodInstruction(currentChat));
                 state.isAIProcessing = false;
 
                 if (result.error) {
