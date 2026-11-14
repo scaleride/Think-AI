@@ -416,6 +416,9 @@ document.addEventListener('DOMContentLoaded', () => {
         } else {
             // Restore previous model
             const prev = state.previousModel || 'Fluid 2.0';
+            // Top box goes back to Think-Chat; bottom box returns to the model used before
+            const thinkOption = document.querySelector('#model-dropdown .model-option[data-model="Think-Chat"]');
+            if (thinkOption) updateModelSelection(thinkOption);
             const option = document.querySelector(`.model-option[data-model="${prev}"]`);
             if (option) updateModelSelection(option);
         }
