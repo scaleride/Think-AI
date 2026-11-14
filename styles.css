@@ -623,3 +623,19 @@ html {
 .action-btn { width: 30px; height: 30px; }
 .action-btn svg, .action-btn i { width: 15px; height: 15px; }
 .ai-bubble, .user-bubble { line-height: 1.6; }
+
+/* Dark / Neon: hover backgrounds were light (bg-gray-50, bg-white/50) while text stayed white */
+.dark-mode [class*="hover:bg-gray-50"]:hover,
+.dark-mode [class*="hover:bg-white"]:hover,
+.neon-mode [class*="hover:bg-gray-50"]:hover,
+.neon-mode [class*="hover:bg-white"]:hover {
+    background-color: rgba(255, 255, 255, 0.08) !important;
+}
+.dark-mode [class*="hover:bg-red-50"]:hover,
+.neon-mode [class*="hover:bg-red-50"]:hover {
+    background-color: rgba(239, 68, 68, 0.15) !important;
+}
+.dark-mode .chat-history-item:hover,
+.neon-mode .chat-history-item:hover {
+    background-color: rgba(255, 255, 255, 0.08) !important;
+}
