@@ -191,38 +191,36 @@ document.addEventListener('DOMContentLoaded', () => {
     plusMenuBtn?.addEventListener('click', (e) => { e.stopPropagation(); plusMenu.classList.toggle('show'); });
 
     // Theme Logic (3-way toggle: Light -> Dark -> Neon)
+    // Theme cycle: Light -> Dark -> Neon -> Chrome -> Light
+    const THEME_CONFIG = {
+        light:  { icon: 'sun',  text: 'Light Mode',  track: '#e5e7eb', left: '2px',  logo: 'logo.png' },
+        dark:   { icon: 'moon', text: 'Dark Mode',   track: '#1f2937', left: '10px', logo: 'logo_dark.jpg' },
+        neon:   { icon: 'zap',  text: 'Neon Mode',   track: '#ff5bf8', left: '18px', logo: 'logo_neon.png' },
+        chrome: { icon: 'gem',  text: 'Chrome Mode', track: '#9aa4b2', left: '18px', logo: 'logo_dark.jpg' }
+    };
+    const THEME_ORDER = ['light', 'dark', 'neon', 'chrome'];
+
     const toggleTheme = () => {
         const themeIcon = document.getElementById('theme-icon');
         const themeText = document.getElementById('theme-text');
         const toggleTrack = document.getElementById('toggle-track');
         const toggleThumb = document.getElementById('toggle-thumb');
 
-        document.body.classList.remove('dark-mode', 'neon-mode');
+        const next = THEME_ORDER[(THEME_ORDER.indexOf(state.currentTheme) + 1) % THEME_ORDER.length];
+        state.currentTheme = next;
+        const cfg = THEME_CONFIG[next];
 
-        if (state.currentTheme === 'light') {
-            state.currentTheme = 'dark';
-            document.body.classList.add('dark-mode');
-            themeIcon.setAttribute('data-lucide', 'moon');
-            themeText.textContent = 'Dark Mode';
-            toggleTrack.style.backgroundColor = '#1f2937';
-            toggleThumb.style.left = '10px';
-            if (mainLogo) mainLogo.src = 'logo_dark.jpg';
-        } else if (state.currentTheme === 'dark') {
-            state.currentTheme = 'neon';
-            document.body.classList.add('neon-mode');
-            themeIcon.setAttribute('data-lucide', 'zap');
-            themeText.textContent = 'Neon Mode';
-            toggleTrack.style.backgroundColor = '#ff5bf8';
-            toggleThumb.style.left = '18px';
-            if (mainLogo) mainLogo.src = 'logo_neon.png';
-        } else {
-            state.currentTheme = 'light';
-            themeIcon.setAttribute('data-lucide', 'sun');
-            themeText.textContent = 'Light Mode';
-            toggleTrack.style.backgroundColor = '#e5e7eb';
-            toggleThumb.style.left = '2px';
-            if (mainLogo) mainLogo.src = 'logo.png';
-        }
+        document.body.classList.remove('dark-mode', 'neon-mode', 'chrome-mode');
+        // Chrome builds on the dark styles and adds its own look on top
+        if (next === 'dark' || next === 'chrome') document.body.classList.add('dark-mode');
+        if (next === 'neon') document.body.classList.add('neon-mode');
+        if (next === 'chrome') document.body.classList.add('chrome-mode');
+
+        themeIcon.setAttribute('data-lucide', cfg.icon);
+        themeText.textContent = cfg.text;
+        toggleTrack.style.backgroundColor = cfg.track;
+        toggleThumb.style.left = cfg.left;
+        if (mainLogo) mainLogo.src = cfg.logo;
         lucide.createIcons();
         refreshSidebarLogo();
     };

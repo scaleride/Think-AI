@@ -639,3 +639,69 @@ html {
 .neon-mode .chat-history-item:hover {
     background-color: rgba(255, 255, 255, 0.08) !important;
 }
+
+/* =============================================
+   CHROME MODE: dark steel, silver glass, glossy pink highlights
+   (uses the dark-mode rules as its base)
+   ============================================= */
+.chrome-mode {
+    --main-bg: radial-gradient(1100px 620px at 18% -12%, #3b4352 0%, #1a1e27 42%, #0a0c11 100%);
+    --sidebar-bg: rgba(18, 21, 28, 0.6);
+    --ai-bubble: rgba(255, 255, 255, 0.05);
+    --input-bg: rgba(255, 255, 255, 0.07);
+    --card-white: rgba(30, 35, 45, 0.82);
+    --logo-border: #1a1e27;
+    --text-primary: #f1f5f9;
+    --text-secondary: #a8b0bd;
+    --border-color: rgba(205, 215, 230, 0.16);
+    --top-bar-bg: rgba(12, 14, 20, 0.5);
+}
+.chrome-mode body,
+body.chrome-mode {
+    background: var(--main-bg);
+    background-attachment: fixed;
+}
+.chrome-mode main { background: transparent; }
+.chrome-mode aside {
+    background: linear-gradient(180deg, rgba(255,255,255,0.10) 0%, rgba(255,255,255,0.02) 40%, rgba(255,255,255,0.06) 100%), var(--sidebar-bg);
+    border-right: 1px solid rgba(220, 228, 240, 0.18);
+    box-shadow: 8px 0 30px rgba(0, 0, 0, 0.35), inset -1px 0 0 rgba(255,255,255,0.06);
+}
+.chrome-mode header { background-color: var(--top-bar-bg); border-bottom-color: rgba(220,228,240,0.14); }
+.chrome-mode .liquid-glass {
+    background: linear-gradient(135deg, rgba(255,255,255,0.20) 0%, rgba(255,255,255,0.05) 50%, rgba(255,255,255,0.14) 100%);
+    border: 1px solid rgba(235, 240, 250, 0.28);
+    backdrop-filter: blur(28px) saturate(170%);
+    -webkit-backdrop-filter: blur(28px) saturate(170%);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.40), inset 0 -1px 0 rgba(255,255,255,0.05), 0 12px 34px rgba(0,0,0,0.45);
+}
+.chrome-mode .liquid-glass::before {
+    display: block;
+    background: linear-gradient(115deg, rgba(255,255,255,0) 28%, rgba(255,255,255,0.28) 48%, rgba(255,255,255,0) 66%);
+}
+.chrome-mode .user-bubble {
+    background: linear-gradient(135deg, #ffb3fb 0%, #ff5bf8 42%, #c9bfd8 100%);
+    color: #14101a !important;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.55), 0 8px 26px rgba(255, 91, 248, 0.30);
+}
+.chrome-mode .user-bubble .chat-link { color: #1d1530 !important; }
+.chrome-mode .ai-bubble {
+    background: linear-gradient(160deg, rgba(255,255,255,0.14) 0%, rgba(255,255,255,0.03) 100%);
+    border: 1px solid rgba(220, 228, 240, 0.16);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.12);
+}
+.chrome-mode #send-btn,
+.chrome-mode #new-chat-btn,
+.chrome-mode #mood-confirm-btn {
+    background: linear-gradient(135deg, #ffd0fb 0%, #ff5bf8 45%, #9ea6b5 100%) !important;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.5), 0 6px 20px rgba(255,91,248,0.28);
+}
+.chrome-mode .chat-history-item.bg-white {
+    background: linear-gradient(135deg, rgba(255,255,255,0.18), rgba(255,255,255,0.05)) !important;
+    border-color: rgba(230,236,246,0.28) !important;
+}
+.chrome-mode .dropdown-content {
+    background: linear-gradient(160deg, rgba(255,255,255,0.14), rgba(255,255,255,0.03)), var(--card-white);
+    border-color: rgba(230,236,246,0.22);
+}
+.chrome-mode #chat-input::placeholder { color: rgba(230, 236, 246, 0.55); }
