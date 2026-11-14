@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Comet v06.01.0</title>
+    <title>Comet</title>
     <meta name="description" content="Comet is a premium AI research platform with a sleek, vibrant interface.">
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
@@ -71,6 +71,7 @@
                 </button>
                 <div id="settings-dropdown" class="dropdown-content absolute bottom-full left-0 mb-2 w-64 p-3 rounded-2xl shadow-2xl">
                     <div class="space-y-4">
+                        <button id="open-settings-btn" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold hover:bg-gray-50 transition-colors"><i data-lucide="settings" class="w-4 h-4 text-[#ff5bf8]"></i><span>Settings</span></button>
                         <div class="px-2 pt-1">
                             <h3 class="text-xs font-bold uppercase tracking-widest text-gray-400 mb-3">Preferences</h3>
                             <button id="theme-toggle-btn" class="theme-switch-btn">
@@ -358,6 +359,121 @@
             <button id="offline-retry" class="w-full py-3.5 bg-[#ff5bf8] hover:bg-[#ff7efb] text-white rounded-2xl font-semibold shadow-lg shadow-[#ff5bf8]/25 transition-all">Try again</button>
             <button id="offline-continue" class="w-full py-2 text-xs font-semibold" style="color: var(--text-secondary);">Continue to my chats</button>
             <p id="offline-status" class="text-xs min-h-[16px]" style="color: var(--text-secondary);"></p>
+        </div>
+    </div>
+
+    <!-- Settings screen (opened from the three-dots menu) -->
+    <div id="settings-screen" class="hidden fixed inset-0 z-[250] flex flex-col" style="background: var(--main-bg); color: var(--text-primary);">
+        <div class="relative h-14 flex items-center px-3 border-b" style="border-color: var(--border-color);">
+            <button id="settings-back" class="p-2 rounded-xl hover:bg-gray-100/10" title="Back"><i data-lucide="arrow-left" class="w-5 h-5"></i></button>
+        </div>
+        <div class="flex-1 overflow-y-auto custom-scrollbar">
+            <div class="max-w-xl mx-auto px-5 pb-8">
+                <div class="flex flex-col items-center pt-7 pb-4 gap-3">
+                    <div class="relative">
+                        <div class="w-24 h-24 rounded-full bg-[#ff5bf8] flex items-center justify-center text-white text-2xl font-bold shadow-lg shadow-[#ff5bf8]/25 overflow-hidden">
+                            <img id="settings-avatar-img" src="" alt="" class="w-full h-full object-cover hidden">
+                            <span id="settings-avatar-initial">U</span>
+                        </div>
+                        <button id="settings-avatar-edit" class="absolute bottom-0 right-0 w-8 h-8 rounded-full bg-white text-[#ff5bf8] shadow border border-gray-100 flex items-center justify-center" title="Change photo"><i data-lucide="pencil" class="w-3.5 h-3.5"></i></button>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <span id="settings-name" class="text-base font-semibold">User</span>
+                        <button id="settings-name-edit" class="p-1 rounded-lg hover:bg-gray-100/10" title="Edit name"><i data-lucide="pencil" class="w-3.5 h-3.5 text-[#ff5bf8]"></i></button>
+                    </div>
+                </div>
+
+                <section class="settings-group">
+                    <h3 class="text-[11px] font-bold uppercase tracking-widest mt-6 mb-1" style="color: var(--text-secondary);">My Assistant</h3>
+                    
+                    <div class="settings-row border-b" data-search="mood modifier personalization personality tone" style="border-color: var(--border-color);">
+                        <button class="settings-row-head w-full flex items-center justify-between py-3.5 text-left">
+                            <span class="text-sm font-medium">Mood modifier</span>
+                            <span class="flex items-center gap-2 text-xs" style="color: var(--text-secondary);"><span id="settings-mood-value" class="row-value">—</span><i data-lucide="chevron-right" class="w-4 h-4"></i></span>
+                        </button>
+                        <div class="settings-row-body hidden pb-4">
+                            <div class="grid grid-cols-4 gap-2 mb-3">
+                                <button class="settings-mood-off col-span-4 py-2 rounded-2xl border text-xs font-semibold" style="border-color: var(--border-color); color: var(--text-secondary);">Off</button>
+                                <button class="settings-mood flex flex-col items-center gap-1 p-2 rounded-2xl border hover:border-[#ff5bf8] transition-all" data-mood="Friendly" style="border-color: var(--border-color);"><span class="text-lg">😊</span><span class="text-[9px] font-bold uppercase tracking-wider" style="color: var(--text-secondary);">Friendly</span></button><button class="settings-mood flex flex-col items-center gap-1 p-2 rounded-2xl border hover:border-[#ff5bf8] transition-all" data-mood="Angry" style="border-color: var(--border-color);"><span class="text-lg">😠</span><span class="text-[9px] font-bold uppercase tracking-wider" style="color: var(--text-secondary);">Angry</span></button><button class="settings-mood flex flex-col items-center gap-1 p-2 rounded-2xl border hover:border-[#ff5bf8] transition-all" data-mood="Emotional" style="border-color: var(--border-color);"><span class="text-lg">🥺</span><span class="text-[9px] font-bold uppercase tracking-wider" style="color: var(--text-secondary);">Emotional</span></button><button class="settings-mood flex flex-col items-center gap-1 p-2 rounded-2xl border hover:border-[#ff5bf8] transition-all" data-mood="Romantic" style="border-color: var(--border-color);"><span class="text-lg">💝</span><span class="text-[9px] font-bold uppercase tracking-wider" style="color: var(--text-secondary);">Romantic</span></button><button class="settings-mood flex flex-col items-center gap-1 p-2 rounded-2xl border hover:border-[#ff5bf8] transition-all" data-mood="Funny" style="border-color: var(--border-color);"><span class="text-lg">😂</span><span class="text-[9px] font-bold uppercase tracking-wider" style="color: var(--text-secondary);">Funny</span></button><button class="settings-mood flex flex-col items-center gap-1 p-2 rounded-2xl border hover:border-[#ff5bf8] transition-all" data-mood="Serious" style="border-color: var(--border-color);"><span class="text-lg">🧐</span><span class="text-[9px] font-bold uppercase tracking-wider" style="color: var(--text-secondary);">Serious</span></button><button class="settings-mood flex flex-col items-center gap-1 p-2 rounded-2xl border hover:border-[#ff5bf8] transition-all" data-mood="Sad" style="border-color: var(--border-color);"><span class="text-lg">😢</span><span class="text-[9px] font-bold uppercase tracking-wider" style="color: var(--text-secondary);">Sad</span></button><button class="settings-mood flex flex-col items-center gap-1 p-2 rounded-2xl border hover:border-[#ff5bf8] transition-all" data-mood="Happy" style="border-color: var(--border-color);"><span class="text-lg">🌟</span><span class="text-[9px] font-bold uppercase tracking-wider" style="color: var(--text-secondary);">Happy</span></button>
+                            </div>
+                            <div class="flex items-center justify-between mb-1"><span class="text-xs font-semibold" style="color: var(--text-secondary);">Intensity</span><span id="settings-mood-intensity-label" class="text-xs font-bold text-[#ff5bf8]">50%</span></div>
+                            <input id="settings-mood-slider" type="range" min="0" max="100" value="50" class="w-full accent-[#ff5bf8]">
+                            <p class="text-[11px] mt-2" style="color: var(--text-secondary);">Applies to all your chats. A mood set inside a chat overrides this one.</p></div>
+                    </div>
+                    
+                    <div class="settings-row border-b" data-search="memory nickname about you" style="border-color: var(--border-color);">
+                        <button class="settings-row-head w-full flex items-center justify-between py-3.5 text-left">
+                            <span class="text-sm font-medium">Memory</span>
+                            <span class="flex items-center gap-2 text-xs" style="color: var(--text-secondary);"><span id="settings-memory-value" class="row-value">—</span><i data-lucide="chevron-right" class="w-4 h-4"></i></span>
+                        </button>
+                        <div class="settings-row-body hidden pb-4">
+                            <div class="flex items-center justify-between py-2">
+                                <span class="text-sm">Enable memory</span>
+                                <button id="settings-memory-toggle" class="px-3 py-1.5 rounded-full text-xs font-bold border" style="border-color: var(--border-color);">Off</button>
+                            </div>
+                            <label class="block text-xs font-semibold mt-2 mb-1" style="color: var(--text-secondary);">Your nickname</label>
+                            <input id="settings-nickname" type="text" maxlength="40" placeholder="What should Comet call you?" class="w-full px-3 py-2.5 rounded-xl text-sm bg-transparent border focus:outline-none" style="border-color: var(--border-color); color: var(--text-primary);">
+                            <label class="block text-xs font-semibold mt-3 mb-1" style="color: var(--text-secondary);">About you</label>
+                            <textarea id="settings-about-you" rows="3" maxlength="500" placeholder="Interests, job, preferences Comet should know" class="w-full px-3 py-2.5 rounded-xl text-sm bg-transparent border focus:outline-none resize-none" style="border-color: var(--border-color); color: var(--text-primary);"></textarea>
+                            <p class="text-[11px] mt-2" style="color: var(--text-secondary);">When memory is on, Comet uses these details in your chats.</p></div>
+                    </div>
+                </section>
+
+                <section class="settings-group">
+                    <h3 class="text-[11px] font-bold uppercase tracking-widest mt-6 mb-1" style="color: var(--text-secondary);">Account</h3>
+                    <div class="settings-row border-b" data-search="workspace personal" style="border-color: var(--border-color);"><div class="flex items-center justify-between py-3.5"><span class="text-sm font-medium">Workspace</span><span class="text-xs" style="color: var(--text-secondary);">Personal</span></div></div>
+                    <div class="settings-row border-b" data-search="your plan free subscription" style="border-color: var(--border-color);"><div class="flex items-center justify-between py-3.5"><span class="text-sm font-medium">Your plan</span><span class="text-xs" style="color: var(--text-secondary);">Free</span></div></div>
+                    
+                    <div class="settings-row border-b" data-search="mode think chat search" style="border-color: var(--border-color);">
+                        <button class="settings-row-head w-full flex items-center justify-between py-3.5 text-left">
+                            <span class="text-sm font-medium">Mode</span>
+                            <span class="flex items-center gap-2 text-xs" style="color: var(--text-secondary);"><span id="settings-mode-value" class="row-value">—</span><i data-lucide="chevron-right" class="w-4 h-4"></i></span>
+                        </button>
+                        <div class="settings-row-body hidden pb-4"><button class="settings-pick w-full text-left px-3 py-2.5 rounded-xl text-sm hover:bg-gray-50 transition-colors" data-setting-mode="Think-Chat">Think-Chat</button><button class="settings-pick w-full text-left px-3 py-2.5 rounded-xl text-sm hover:bg-gray-50 transition-colors" data-setting-mode="Think-Search">Think-Search</button><p class="text-[11px] px-1 mt-1" style="color: var(--text-secondary);">Think-Studio is coming soon.</p></div>
+                    </div>
+                    
+                    <div class="settings-row border-b" data-search="model core fluid think" style="border-color: var(--border-color);">
+                        <button class="settings-row-head w-full flex items-center justify-between py-3.5 text-left">
+                            <span class="text-sm font-medium">Model</span>
+                            <span class="flex items-center gap-2 text-xs" style="color: var(--text-secondary);"><span id="settings-model-value" class="row-value">—</span><i data-lucide="chevron-right" class="w-4 h-4"></i></span>
+                        </button>
+                        <div class="settings-row-body hidden pb-4"><button class="settings-pick w-full text-left px-3 py-2.5 rounded-xl text-sm hover:bg-gray-50 transition-colors" data-setting-model="Fluid 2.0">Fluid 2.0</button><button class="settings-pick w-full text-left px-3 py-2.5 rounded-xl text-sm hover:bg-gray-50 transition-colors" data-setting-model="Core 1.2">Core 1.2</button><button class="settings-pick w-full text-left px-3 py-2.5 rounded-xl text-sm hover:bg-gray-50 transition-colors" data-setting-model="Core 1.3">Core 1.3</button><button class="settings-pick w-full text-left px-3 py-2.5 rounded-xl text-sm opacity-40 cursor-not-allowed" disabled>Fluid 2.2 (locked)</button><button class="settings-pick w-full text-left px-3 py-2.5 rounded-xl text-sm opacity-40 cursor-not-allowed" disabled>Fluid 2.3 (soon)</button><button class="settings-pick w-full text-left px-3 py-2.5 rounded-xl text-sm opacity-40 cursor-not-allowed" disabled>Core 1.0</button></div>
+                    </div>
+                </section>
+
+                <section class="settings-group">
+                    <h3 class="text-[11px] font-bold uppercase tracking-widest mt-6 mb-1" style="color: var(--text-secondary);">General</h3>
+                    <div class="settings-row border-b" data-search="general web search globe internet" style="border-color: var(--border-color);">
+                        <div class="flex items-center justify-between py-3.5">
+                            <span class="text-sm font-medium">Web search</span>
+                            <button id="settings-web-toggle" class="px-3 py-1.5 rounded-full text-xs font-bold border" style="border-color: var(--border-color);">Off</button>
+                        </div>
+                    </div>
+                </section>
+
+                <div class="flex gap-3 mt-8">
+                    <button id="settings-about" class="flex-1 py-3 rounded-2xl border text-sm font-semibold hover:bg-gray-100/10" style="border-color: var(--border-color);" data-search="about version">About</button>
+                    <button id="settings-logout" class="flex-1 py-3 rounded-2xl border border-red-400/40 text-red-500 text-sm font-semibold hover:bg-red-500/10" data-search="log out logout sign out">Log out</button>
+                </div>
+            </div>
+        </div>
+        <div class="p-3 border-t" style="border-color: var(--border-color);">
+            <div class="max-w-xl mx-auto relative">
+                <i data-lucide="search" class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400"></i>
+                <input id="settings-search" type="text" placeholder="Search settings" class="w-full pl-9 pr-3 py-2.5 rounded-xl text-sm bg-transparent border focus:outline-none" style="border-color: var(--border-color); color: var(--text-primary);">
+            </div>
+        </div>
+    </div>
+
+    <!-- Log out confirmation -->
+    <div id="logout-modal" class="hidden fixed inset-0 z-[320] flex items-center justify-center p-6 bg-black/40 backdrop-blur-sm">
+        <div class="w-full max-w-xs rounded-3xl p-6 text-center space-y-4" style="background: var(--card-white); border: 1px solid var(--border-color); color: var(--text-primary);">
+            <h3 class="text-lg font-bold">Log out?</h3>
+            <p class="text-sm" style="color: var(--text-secondary);">Are you sure you want to log out?</p>
+            <div class="flex gap-3">
+                <button id="logout-cancel" class="flex-1 py-3 rounded-2xl border text-sm font-semibold" style="border-color: var(--border-color);">Cancel</button>
+                <button id="logout-confirm" class="flex-1 py-3 rounded-2xl bg-red-500 hover:bg-red-600 text-white text-sm font-semibold">Log out</button>
+            </div>
         </div>
     </div>
 

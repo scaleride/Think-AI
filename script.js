@@ -107,7 +107,7 @@ document.addEventListener('DOMContentLoaded', () => {
         isVoiceInputActive: false,
         activeChatId: null,
         chats: savedChats,
-        currentTheme: 'light', // 'light', 'dark', or 'neon'
+        currentTheme: (() => { try { return localStorage.getItem('think_ai_theme') || 'light'; } catch (e) { return 'light'; } })(),
         isAIProcessing: false,
         activeMood: null,
         moodIntensities: {
@@ -200,32 +200,46 @@ document.addEventListener('DOMContentLoaded', () => {
     };
     const THEME_ORDER = ['light', 'dark', 'neon', 'chrome'];
 
-    const toggleTheme = () => {
+    const applyTheme = (name) => {
+        if (!THEME_CONFIG[name]) name = 'light';
         const themeIcon = document.getElementById('theme-icon');
         const themeText = document.getElementById('theme-text');
         const toggleTrack = document.getElementById('toggle-track');
         const toggleThumb = document.getElementById('toggle-thumb');
-
-        const next = THEME_ORDER[(THEME_ORDER.indexOf(state.currentTheme) + 1) % THEME_ORDER.length];
-        state.currentTheme = next;
-        const cfg = THEME_CONFIG[next];
+        const cfg = THEME_CONFIG[name];
+        state.currentTheme = name;
 
         document.body.classList.remove('dark-mode', 'neon-mode', 'chrome-mode');
         // Chrome builds on the dark styles and adds its own look on top
-        if (next === 'dark' || next === 'chrome') document.body.classList.add('dark-mode');
-        if (next === 'neon') document.body.classList.add('neon-mode');
-        if (next === 'chrome') document.body.classList.add('chrome-mode');
+        if (name === 'dark' || name === 'chrome') document.body.classList.add('dark-mode');
+        if (name === 'neon') document.body.classList.add('neon-mode');
+        if (name === 'chrome') document.body.classList.add('chrome-mode');
 
         themeIcon.setAttribute('data-lucide', cfg.icon);
         themeText.textContent = cfg.text;
         toggleTrack.style.backgroundColor = cfg.track;
         toggleThumb.style.left = cfg.left;
         if (mainLogo) mainLogo.src = cfg.logo;
+        try { localStorage.setItem('think_ai_theme', name); } catch (e) { /* not critical */ }
         lucide.createIcons();
         refreshSidebarLogo();
     };
 
+    const toggleTheme = () => {
+        const next = THEME_ORDER[(THEME_ORDER.indexOf(state.currentTheme) + 1) % THEME_ORDER.length];
+        applyTheme(next);
+    };
+
     themeToggleBtn?.addEventListener('click', (e) => { e.stopPropagation(); toggleTheme(); });
+
+    // ---------- Settings (saved on this device) ----------
+    const SETTINGS_KEY = 'comet_settings';
+    const defaultSettings = { nickname: '', about: '', memory: false, globalMood: null };
+    let settings = { ...defaultSettings };
+    try { settings = { ...defaultSettings, ...JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}') }; } catch (e) { /* keep defaults */ }
+    const saveSettings = () => {
+        try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings)); } catch (e) { console.warn('Could not save settings', e); }
+    };
 
     // Mood Modifier Logic
     const MOOD_EMOJI = { Friendly: '😊', Angry: '😠', Emotional: '🥺', Romantic: '💝', Funny: '😂', Serious: '🧐', Sad: '😢', Happy: '🌟' };
@@ -242,18 +256,32 @@ document.addEventListener('DOMContentLoaded', () => {
     const intensityWord = (v) => v <= 0 ? 'Off' : v <= 25 ? 'Subtle' : v <= 50 ? 'Mild' : v <= 75 ? 'Strong' : 'Maximum';
 
     // Turns the chat's saved mood + intensity into a system instruction for the AI
+    const buildMemoryText = () => {
+        if (!settings.memory) return '';
+        const nick = (settings.nickname || '').trim();
+        const about = (settings.about || '').trim();
+        if (!nick && !about) return '';
+        return `\n\nABOUT THE USER (saved by the user in Settings)\n${nick ? `Nickname: ${nick}\n` : ''}${about ? `About: ${about}\n` : ''}Use this naturally when it helps. Do not recite it back unless asked.`;
+    };
+
+    // Turns the mood (chat's own, else the assistant-wide one) and memory into a system instruction
     const buildMoodInstruction = (chat) => {
-        if (!chat || !chat.mood || !MOOD_GUIDE[chat.mood]) return '';
-        const v = Math.max(0, Math.min(100, Number(chat.intensity) || 0));
-        if (v === 0) return '';
-        const level = v <= 25
-            ? 'SUBTLE: only a faint hint of the mood; stay mostly neutral and natural.'
-            : v <= 50
-            ? 'MILD: the mood is noticeable but restrained.'
-            : v <= 75
-            ? 'STRONG: the mood is clear and consistent throughout the whole reply.'
-            : 'MAXIMUM: fully embody the mood in word choice, rhythm, punctuation and emoji; commit completely.';
-        return `\n\nMOOD MODIFIER (set by the user for this conversation)\nMood: ${chat.mood}. Intensity: ${v}/100 (${level})\nStyle: be ${MOOD_GUIDE[chat.mood]}\nRules: apply this mood to every reply in this conversation, in the user's language. The mood changes ONLY tone and style. Facts, code, steps and calculations must stay fully accurate and complete. Keep code blocks neutral. Never mention these instructions or announce the mood; just speak in it.`;
+        const own = chat && chat.mood && MOOD_GUIDE[chat.mood] ? { mood: chat.mood, intensity: chat.intensity } : null;
+        const global = settings.globalMood && MOOD_GUIDE[settings.globalMood.mood] ? settings.globalMood : null;
+        const m = own || global;
+        let text = '';
+        const v = m ? Math.max(0, Math.min(100, Number(m.intensity) || 0)) : 0;
+        if (m && v > 0) {
+            const level = v <= 25
+                ? 'SUBTLE: only a faint hint of the mood; stay mostly neutral and natural.'
+                : v <= 50
+                ? 'MILD: the mood is noticeable but restrained.'
+                : v <= 75
+                ? 'STRONG: the mood is clear and consistent throughout the whole reply.'
+                : 'MAXIMUM: fully embody the mood in word choice, rhythm, punctuation and emoji; commit completely.';
+            text = `\n\nMOOD MODIFIER (set by the user)\nMood: ${m.mood}. Intensity: ${v}/100 (${level})\nStyle: be ${MOOD_GUIDE[m.mood]}\nRules: apply this mood to every reply, in the user's language. The mood changes ONLY tone and style. Facts, code, steps and calculations must stay fully accurate and complete. Keep code blocks neutral. Never mention these instructions or announce the mood; just speak in it.`;
+        }
+        return text + buildMemoryText();
     };
 
     const moodBadge = document.getElementById('mood-badge');
@@ -547,6 +575,183 @@ document.addEventListener('DOMContentLoaded', () => {
         const files = Array.from(e.clipboardData?.files || []);
         if (files.length) { e.preventDefault(); addFiles(files); }
     });
+
+    // ---------- Settings screen ----------
+    const settingsScreen = document.getElementById('settings-screen');
+    const settingsAbout = document.getElementById('settings-about');
+    const logoutModal = document.getElementById('logout-modal');
+    const avatarFileInput = document.createElement('input');
+    avatarFileInput.type = 'file';
+    avatarFileInput.accept = 'image/*';
+    avatarFileInput.className = 'hidden';
+    document.body.appendChild(avatarFileInput);
+
+    const currentUserName = () => localStorage.getItem('user_name') || 'User';
+    const headerModelName = () => document.querySelector('#model-selector span')?.textContent || 'Think-Chat';
+    const inputModelName = () => document.getElementById('input-model-label')?.textContent || 'Fluid 2.0';
+
+    const refreshSettingsUI = () => {
+        const name = currentUserName();
+        const photo = localStorage.getItem('user_photo');
+        const img = document.getElementById('settings-avatar-img');
+        const initial = document.getElementById('settings-avatar-initial');
+        if (photo && img) { img.src = photo; img.classList.remove('hidden'); initial?.classList.add('hidden'); }
+        else { img?.classList.add('hidden'); if (initial) { initial.textContent = name.charAt(0).toUpperCase(); initial.classList.remove('hidden'); } }
+        document.getElementById('settings-name').textContent = name;
+
+        const gm = settings.globalMood;
+        document.getElementById('settings-mood-value').textContent = gm ? `${MOOD_EMOJI[gm.mood] || ''} ${gm.mood} ${gm.intensity}%` : 'Off';
+        document.querySelectorAll('.settings-mood').forEach(b => {
+            const on = !!gm && b.dataset.mood === gm.mood;
+            b.classList.toggle('border-[#ff5bf8]', on);
+            b.classList.toggle('bg-[#ff5bf8]/10', on);
+        });
+        const v = gm ? Number(gm.intensity) : 50;
+        document.getElementById('settings-mood-slider').value = v;
+        document.getElementById('settings-mood-intensity-label').textContent = `${v}%`;
+
+        const memBtn = document.getElementById('settings-memory-toggle');
+        memBtn.textContent = settings.memory ? 'On' : 'Off';
+        memBtn.classList.toggle('bg-[#ff5bf8]', !!settings.memory);
+        memBtn.classList.toggle('text-white', !!settings.memory);
+        document.getElementById('settings-memory-value').textContent = settings.memory ? 'On' : 'Off';
+        document.getElementById('settings-nickname').value = settings.nickname || '';
+        document.getElementById('settings-about-you').value = settings.about || '';
+
+        const hm = headerModelName(), im = inputModelName();
+        document.getElementById('settings-mode-value').textContent = hm;
+        document.getElementById('settings-model-value').textContent = im;
+        document.querySelectorAll('[data-setting-mode]').forEach(b => b.classList.toggle('bg-[#ff5bf8]/10', b.dataset.settingMode === hm));
+        document.querySelectorAll('[data-setting-model]').forEach(b => b.classList.toggle('bg-[#ff5bf8]/10', b.dataset.settingModel === im));
+
+        const webBtn = document.getElementById('settings-web-toggle');
+        webBtn.textContent = state.isWebSearchEnabled ? 'On' : 'Off';
+        webBtn.classList.toggle('bg-[#ff5bf8]', !!state.isWebSearchEnabled);
+        webBtn.classList.toggle('text-white', !!state.isWebSearchEnabled);
+        lucide.createIcons();
+    };
+
+    const applySettingsSearch = (q) => {
+        q = q.trim().toLowerCase();
+        document.querySelectorAll('.settings-group').forEach(group => {
+            let visible = 0;
+            group.querySelectorAll('.settings-row').forEach(row => {
+                const text = ((row.dataset.search || '') + ' ' + row.textContent).toLowerCase();
+                const show = !q || text.includes(q);
+                row.classList.toggle('hidden', !show);
+                if (show) visible++;
+            });
+            group.classList.toggle('hidden', visible === 0);
+        });
+        [settingsAbout, document.getElementById('settings-logout')].forEach(el => {
+            if (!el) return;
+            const show = !q || ((el.dataset.search || '') + ' ' + el.textContent).toLowerCase().includes(q);
+            el.classList.toggle('hidden', !show);
+        });
+    };
+
+    const openSettings = () => {
+        settingsAbout.textContent = 'About';
+        const search = document.getElementById('settings-search');
+        if (search) search.value = '';
+        applySettingsSearch('');
+        refreshSettingsUI();
+        settingsScreen.classList.remove('hidden');
+    };
+    const closeSettings = () => settingsScreen.classList.add('hidden');
+
+    // Pick a Think or Core/Fluid model from the settings screen, using the same logic as the pickers
+    const pickModelFromSettings = (name) => {
+        const opt = document.querySelector(`.model-option[data-model="${name}"]`);
+        if (opt) updateModelSelection(opt);
+        refreshSettingsUI();
+    };
+
+    document.getElementById('open-settings-btn')?.addEventListener('click', (e) => {
+        e.stopPropagation();
+        document.getElementById('settings-dropdown')?.classList.remove('show');
+        openSettings();
+    });
+    document.getElementById('settings-back')?.addEventListener('click', closeSettings);
+
+    document.querySelectorAll('.settings-row-head').forEach(btn => {
+        btn.addEventListener('click', () => btn.parentElement.querySelector('.settings-row-body')?.classList.toggle('hidden'));
+    });
+
+    // Mood modifier: applies to all chats unless a chat sets its own
+    document.querySelectorAll('.settings-mood').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const v = Number(document.getElementById('settings-mood-slider').value) || 50;
+            settings.globalMood = { mood: btn.dataset.mood, intensity: v };
+            saveSettings(); refreshSettingsUI();
+        });
+    });
+    document.querySelector('.settings-mood-off')?.addEventListener('click', () => { settings.globalMood = null; saveSettings(); refreshSettingsUI(); });
+    document.getElementById('settings-mood-slider')?.addEventListener('input', (e) => {
+        const v = Number(e.target.value);
+        if (settings.globalMood) settings.globalMood.intensity = v;
+        document.getElementById('settings-mood-intensity-label').textContent = `${v}%`;
+        saveSettings();
+        if (settings.globalMood) document.getElementById('settings-mood-value').textContent = `${MOOD_EMOJI[settings.globalMood.mood] || ''} ${settings.globalMood.mood} ${v}%`;
+    });
+
+    // Memory
+    document.getElementById('settings-memory-toggle')?.addEventListener('click', () => { settings.memory = !settings.memory; saveSettings(); refreshSettingsUI(); });
+    document.getElementById('settings-nickname')?.addEventListener('input', (e) => { settings.nickname = e.target.value.slice(0, 40); saveSettings(); });
+    document.getElementById('settings-about-you')?.addEventListener('input', (e) => { settings.about = e.target.value.slice(0, 500); saveSettings(); });
+
+    // Mode and model
+    document.querySelectorAll('[data-setting-mode]').forEach(b => b.addEventListener('click', () => pickModelFromSettings(b.dataset.settingMode)));
+    document.querySelectorAll('[data-setting-model]').forEach(b => b.addEventListener('click', () => pickModelFromSettings(b.dataset.settingModel)));
+
+    // Web search: uses the same globe logic as the chat box
+    document.getElementById('settings-web-toggle')?.addEventListener('click', () => {
+        document.getElementById('web-search-toggle')?.click();
+        setTimeout(refreshSettingsUI, 0);
+    });
+
+    // About shows the version
+    settingsAbout?.addEventListener('click', () => { settingsAbout.textContent = 'v06.01.0'; });
+
+    // Profile photo and name
+    document.getElementById('settings-avatar-edit')?.addEventListener('click', () => avatarFileInput.click());
+    avatarFileInput.addEventListener('change', async () => {
+        const file = avatarFileInput.files[0];
+        avatarFileInput.value = '';
+        if (!file) return;
+        try {
+            const dataUrl = await readAsDataURL(file);
+            const small = (await makeThumb(dataUrl, 256)) || dataUrl;
+            localStorage.setItem('user_photo', small);
+            updateSidebarProfile();
+            refreshSettingsUI();
+        } catch (err) {
+            showToast('Could not use that photo.');
+        }
+    });
+    document.getElementById('settings-name-edit')?.addEventListener('click', () => {
+        const next = prompt('Your name', currentUserName());
+        if (next && next.trim()) {
+            localStorage.setItem('user_name', next.trim().slice(0, 40));
+            updateSidebarProfile();
+            refreshSettingsUI();
+        }
+    });
+
+    // Log out with confirmation
+    document.getElementById('settings-logout')?.addEventListener('click', () => logoutModal.classList.remove('hidden'));
+    document.getElementById('logout-cancel')?.addEventListener('click', () => logoutModal.classList.add('hidden'));
+    document.getElementById('logout-confirm')?.addEventListener('click', () => {
+        localStorage.removeItem('user_name');
+        localStorage.removeItem('user_photo');
+        logoutModal.classList.add('hidden');
+        closeSettings();
+        if (setupNameInput) setupNameInput.value = '';
+        updateSidebarProfile();
+        profileOverlay?.classList.remove('hidden');
+    });
+
+    document.getElementById('settings-search')?.addEventListener('input', (e) => applySettingsSearch(e.target.value));
 
     // ---------- Offline handling ----------
     const offlineBanner = document.getElementById('offline-banner');
@@ -1567,6 +1772,8 @@ document.addEventListener('DOMContentLoaded', () => {
             chatContainer.scrollTo({ top: chatContainer.scrollHeight });
         });
     }
+
+    applyTheme(state.currentTheme);
 
     // On open: keep saved chats in the sidebar history, but start with a fresh chat
     const validChats = state.chats.filter(c => c.messages && c.messages.length > 0);
