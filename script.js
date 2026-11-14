@@ -1453,85 +1453,26 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
-    // Pool of Gemini API keys for seamless automatic rotation on rate limits / errors
-    const API_KEYS = [
-        'AIzaSyDiR7pFjFXduRxZizWrAjTKq9Y241AIQug',
-        'AIzaSyCCqaNWp37877iuGqvClEssjTtsb-AfWHg',
-        'AIzaSyBeJ7p_-Pv5gY4UyEvEYt1BPICsCVaQKXM',
-        'AIzaSyDW8Nf1FBL6WvOKFafhxUCZChJ6X-Yd7z4'
-    ];
-    let currentKeyIndex = parseInt(localStorage.getItem('think_ai_key_index') || '0');
-    if (currentKeyIndex >= API_KEYS.length) {
-        currentKeyIndex = 0;
-        localStorage.setItem('think_ai_key_index', '0');
-    }
+    // Chat requests go to your own server (see backend/index.js). The Gemini key lives only on that server.
+    // Replace the URL below with your deployed function URL.
+    const COMET_API_URL = 'https://YOUR-FUNCTION-URL-HERE';
 
     const callGeminiAPI = async (history, moodText = '') => {
-        let attempts = 0;
-        const maxAttempts = API_KEYS.length;
-
-        while (attempts < maxAttempts) {
-            const apiKey = API_KEYS[currentKeyIndex];
-            console.log(`Sending API request using key index: ${currentKeyIndex}`);
-
-            try {
-                const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${apiKey}`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ 
-                        contents: history,
-                        systemInstruction: {
-                            parts: [{ text: "You are Comet, a helpful and natural-sounding AI assistant created by the Think AI team. Only mention that you were made by Think AI when specifically asked about your origin or creator. Otherwise, respond naturally to greetings and questions." + moodText }]
-                        },
-                        safetySettings: [
-                            { category: "HARM_CATEGORY_HARASSMENT", threshold: "BLOCK_NONE" },
-                            { category: "HARM_CATEGORY_HATE_SPEECH", threshold: "BLOCK_NONE" },
-                            { category: "HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold: "BLOCK_NONE" },
-                            { category: "HARM_CATEGORY_DANGEROUS_CONTENT", threshold: "BLOCK_NONE" }
-                        ]
-                    })
-                });
-
-                const data = await response.json();
-
-                // Check STRICTLY for rate limit (429), resource exhaustion (quota exceeded), or temporary high demand spikes
-                const isLimitExceeded = data.error && (
-                    response.status === 429 || 
-                    data.error.code === 429 || 
-                    data.error.status === 'RESOURCE_EXHAUSTED' || 
-                    data.error.message.toLowerCase().includes('quota') || 
-                    data.error.message.toLowerCase().includes('rate limit') || 
-                    data.error.message.toLowerCase().includes('limit exceeded') ||
-                    data.error.message.toLowerCase().includes('high demand') ||
-                    data.error.message.toLowerCase().includes('temporary') ||
-                    data.error.message.toLowerCase().includes('try again later') ||
-                    data.error.message.toLowerCase().includes('overloaded')
-                );
-
-                if (isLimitExceeded) {
-                    console.warn(`API key index ${currentKeyIndex} quota limit reached. Silently rotating key...`);
-                    currentKeyIndex = (currentKeyIndex + 1) % API_KEYS.length;
-                    localStorage.setItem('think_ai_key_index', currentKeyIndex.toString());
-                    attempts++;
-                    continue; // Retry with next key in pool
-                }
-
-                // If it is another kind of error, just return it directly (do not rotate)
-                if (data.error) {
-                    return { error: data.error };
-                }
-
-                // Success!
-                return { success: true, data: data };
-
-            } catch (error) {
-                console.error(`Network or fetch error with key index ${currentKeyIndex}:`, error);
-                return { error: { message: error.message } };
+        try {
+            const response = await fetch(COMET_API_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ contents: history, moodText })
+            });
+            const data = await response.json();
+            if (!response.ok || data.error) {
+                return { error: data.error || { message: 'Request failed (' + response.status + ')' } };
             }
+            return { success: true, data };
+        } catch (error) {
+            console.error('Comet API request failed:', error);
+            return { error: { message: error.message } };
         }
-
-        // If we got here, all keys in the pool were exhausted
-        return { error: { message: "All Gemini API keys in the key rotation pool have reached their rate/quota limits. Please update your API keys." } };
     };
 
     const handleSend = async () => {
