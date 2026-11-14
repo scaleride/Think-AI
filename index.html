@@ -344,6 +344,23 @@
         </div>
     </div>
 
+    <!-- Full offline screen (shows when the connection drops; you can still open your chats) -->
+    <div id="offline-screen" class="hidden fixed inset-0 z-[300] flex items-center justify-center p-6" style="background: var(--main-bg);">
+        <div class="w-full max-w-sm text-center p-8 rounded-3xl space-y-5 liquid-glass" style="background: var(--card-white); border: 1px solid var(--border-color);">
+            <img id="offline-logo" src="logo.png" alt="Comet" class="w-40 h-auto mx-auto object-contain">
+            <div class="mx-auto w-16 h-16 rounded-full bg-[#ff5bf8] text-white flex items-center justify-center shadow-xl shadow-[#ff5bf8]/30">
+                <i data-lucide="wifi-off" class="w-7 h-7"></i>
+            </div>
+            <div class="space-y-2">
+                <h2 class="text-xl font-bold" style="color: var(--text-primary);">You're offline</h2>
+                <p class="text-sm leading-relaxed" style="color: var(--text-secondary);">Comet needs an internet connection to talk to the AI. Check your Wi-Fi or mobile data, then try again.</p>
+            </div>
+            <button id="offline-retry" class="w-full py-3.5 bg-[#ff5bf8] hover:bg-[#ff7efb] text-white rounded-2xl font-semibold shadow-lg shadow-[#ff5bf8]/25 transition-all">Try again</button>
+            <button id="offline-continue" class="w-full py-2 text-xs font-semibold" style="color: var(--text-secondary);">Continue to my chats</button>
+            <p id="offline-status" class="text-xs min-h-[16px]" style="color: var(--text-secondary);"></p>
+        </div>
+    </div>
+
     <script src="script.js"></script>
 </body>
 </html>

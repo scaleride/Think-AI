@@ -550,12 +550,44 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // ---------- Offline handling ----------
     const offlineBanner = document.getElementById('offline-banner');
-    const updateOnlineStatus = () => {
-        if (offlineBanner) offlineBanner.style.display = navigator.onLine ? 'none' : 'flex';
-        if (!navigator.onLine) lucide.createIcons();
+    const offlineScreen = document.getElementById('offline-screen');
+    const offlineStatus = document.getElementById('offline-status');
+    let offlineDismissed = false;
+
+    const showOfflineScreen = () => {
+        if (!offlineScreen) return;
+        const logo = document.getElementById('offline-logo');
+        if (logo) logo.src = (THEME_CONFIG[state.currentTheme] || THEME_CONFIG.light).logo;
+        offlineScreen.classList.remove('hidden');
+        lucide.createIcons();
     };
+    const hideOfflineScreen = () => offlineScreen?.classList.add('hidden');
+
+    const updateOnlineStatus = () => {
+        if (navigator.onLine) {
+            offlineDismissed = false;
+            if (offlineBanner) offlineBanner.style.display = 'none';
+            hideOfflineScreen();
+        } else {
+            if (offlineBanner) offlineBanner.style.display = 'flex';
+            if (!offlineDismissed) showOfflineScreen();
+            lucide.createIcons();
+        }
+    };
+
     window.addEventListener('online', () => { updateOnlineStatus(); showToast('Back online.'); });
     window.addEventListener('offline', updateOnlineStatus);
+    document.getElementById('offline-retry')?.addEventListener('click', () => {
+        if (navigator.onLine) {
+            updateOnlineStatus();
+        } else if (offlineStatus) {
+            offlineStatus.textContent = 'Still offline. We will reconnect automatically.';
+        }
+    });
+    document.getElementById('offline-continue')?.addEventListener('click', () => {
+        offlineDismissed = true;
+        hideOfflineScreen();
+    });
     updateOnlineStatus();
 
     // Chat Rendering
