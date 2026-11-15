@@ -1461,28 +1461,45 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
-    // Chat requests go to your own server (see backend/index.js). The Gemini key lives only on that server.
-    // Replace the URL below with your deployed function URL.
-    const COMET_API_URL = 'https://YOUR-FUNCTION-URL-HERE';
+    // Chat requests go to your COMET POWER API server (comet_power_api_v2).
+    // Paste the COMET_API_KEYS password from Render between the quotes below.
+    const COMET_API_URL = 'https://think-ai-1-2nfv.onrender.com/v1/chat/completions';
+    const COMET_PASSWORD = 'PASTE-YOUR-COMET-PASSWORD-HERE';
 
+    // Converts the app's Gemini-style history into the server's chat format and back again.
     const callGeminiAPI = async (history, moodText = '') => {
         try {
+            const recent = history.slice(-30);
+            const messages = [];
+            const mood = (moodText || '').trim();
+            if (mood) messages.push({ role: 'system', content: mood });
+            recent.forEach(item => {
+                const text = (item.parts || []).filter(p => p.text).map(p => p.text).join('\n').trim();
+                if (!text) return;
+                messages.push({ role: item.role === 'model' ? 'assistant' : 'user', content: text });
+            });
+            // The server expects the conversation to end with the user's message
+            while (messages.length && messages[messages.length - 1].role !== 'user') messages.pop();
+            if (!messages.length) return { error: { message: 'Nothing to send yet.' } };
+
             const response = await fetch(COMET_API_URL, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ contents: history, moodText })
+                headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + COMET_PASSWORD },
+                body: JSON.stringify({ messages, max_tokens: 1024 })
             });
             let data;
             try {
                 data = await response.json();
             } catch (parseError) {
-                console.error('Comet API returned a non-JSON response:', response.status, parseError);
+                console.error('Comet server returned a non-JSON response:', response.status, parseError);
                 return { error: { message: 'Comet is unavailable right now. Please try again in a moment.' } };
             }
             if (!response.ok || data.error) {
-                return { error: data.error || { message: 'Request failed (' + response.status + ')' } };
+                const msg = (data.error && data.error.message) || ('Request failed (' + response.status + ')');
+                return { error: { message: msg } };
             }
-            return { success: true, data };
+            const text = data.choices && data.choices[0] && data.choices[0].message ? data.choices[0].message.content : '';
+            return { success: true, data: { candidates: [{ content: { parts: [{ text: text || '' }] } }] } };
         } catch (error) {
             console.error('Comet API request failed:', error);
             return { error: { message: 'Could not connect to Comet. Check your internet connection and try again.' } };
