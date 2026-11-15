@@ -1,0 +1,18 @@
+services:
+  - type: web
+    name: comet-power-api
+    runtime: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn app:app --workers 1 --threads 16 --timeout 180 --bind 0.0.0.0:$PORT
+    healthCheckPath: /health
+    envVars:
+      - key: COMET_API_KEYS
+        sync: false
+      - key: GROQ_API_KEY
+        sync: false
+      - key: OPENROUTER_API_KEY
+        sync: false
+      - key: ALLOWED_ORIGINS
+        value: "*"
+      - key: LLM_PROVIDERS
+        value: "groq,openrouter,huggingface,gemini"
