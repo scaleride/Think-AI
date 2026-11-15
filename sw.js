@@ -1,4 +1,4 @@
-const CACHE_NAME = 'comet-v6';
+const CACHE_NAME = 'comet-v7';
 const RUNTIME_CACHE = 'comet-runtime-v2';
 const ASSETS = [
   './',

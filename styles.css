@@ -745,3 +745,8 @@ body:not(.chrome-mode) #mood-confirm-btn {
     background-image: linear-gradient(180deg, rgba(255,255,255,0.38) 0%, rgba(255,255,255,0) 55%);
     box-shadow: inset 0 1px 1px rgba(255,255,255,0.6), inset 0 -6px 10px rgba(0,0,0,0.08), 0 8px 20px rgba(255,91,248,0.28);
 }
+
+/* Phone-only: hide the chat disclaimer, the chat-box model picker and the Mode row in Settings */
+@media (max-width: 640px) {
+    .mobile-hide { display: none !important; }
+}
