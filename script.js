@@ -652,6 +652,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const openSettings = () => {
         settingsAbout.textContent = 'About';
+        aboutTaps = 0;
+        document.getElementById('settings-about-note')?.classList.add('hidden');
         const search = document.getElementById('settings-search');
         if (search) search.value = '';
         applySettingsSearch('');
@@ -711,7 +713,13 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     // About shows the version
-    settingsAbout?.addEventListener('click', () => { settingsAbout.textContent = 'v06.01.0'; });
+    // First tap shows the version; second tap also shows the disclaimer
+    let aboutTaps = 0;
+    settingsAbout?.addEventListener('click', () => {
+        aboutTaps++;
+        settingsAbout.textContent = 'v06.01.0';
+        document.getElementById('settings-about-note')?.classList.toggle('hidden', aboutTaps < 2);
+    });
 
     // Profile photo and name
     document.getElementById('settings-avatar-edit')?.addEventListener('click', () => avatarFileInput.click());
