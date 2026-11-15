@@ -1472,14 +1472,20 @@ document.addEventListener('DOMContentLoaded', () => {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ contents: history, moodText })
             });
-            const data = await response.json();
+            let data;
+            try {
+                data = await response.json();
+            } catch (parseError) {
+                console.error('Comet API returned a non-JSON response:', response.status, parseError);
+                return { error: { message: 'Comet is unavailable right now. Please try again in a moment.' } };
+            }
             if (!response.ok || data.error) {
                 return { error: data.error || { message: 'Request failed (' + response.status + ')' } };
             }
             return { success: true, data };
         } catch (error) {
             console.error('Comet API request failed:', error);
-            return { error: { message: error.message } };
+            return { error: { message: 'Could not connect to Comet. Check your internet connection and try again.' } };
         }
     };
 
