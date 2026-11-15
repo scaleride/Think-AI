@@ -1464,7 +1464,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Chat requests go to your COMET POWER API server (comet_power_api_v2).
     // Paste the COMET_API_KEYS password from Render between the quotes below.
     const COMET_API_URL = 'https://think-ai-1-2nfv.onrender.com/v1/chat/completions';
-    const COMET_PASSWORD = 'PASTE-YOUR-COMET-PASSWORD-HERE';
+    const COMET_PASSWORD = 'b2ktpasY2NicHm1_kCBjgDQAtqdIi2jZttSGn5e3Mg8';
 
     // Converts the app's Gemini-style history into the server's chat format and back again.
     const callGeminiAPI = async (history, moodText = '') => {
