@@ -1482,11 +1482,24 @@ document.addEventListener('DOMContentLoaded', () => {
             while (messages.length && messages[messages.length - 1].role !== 'user') messages.pop();
             if (!messages.length) return { error: { message: 'Nothing to send yet.' } };
 
-            const response = await fetch(COMET_API_URL, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + COMET_PASSWORD },
-                body: JSON.stringify({ messages, max_tokens: 1024 })
-            });
+            const controller = new AbortController();
+            const timer = setTimeout(() => controller.abort(), 60000);
+            let response;
+            try {
+                response = await fetch(COMET_API_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + COMET_PASSWORD },
+                    body: JSON.stringify({ messages, max_tokens: 1024 }),
+                    signal: controller.signal
+                });
+            } catch (fetchError) {
+                if (fetchError.name === 'AbortError') {
+                    return { error: { message: 'Comet took too long to respond. Please try again.' } };
+                }
+                throw fetchError;
+            } finally {
+                clearTimeout(timer);
+            }
             let data;
             try {
                 data = await response.json();
